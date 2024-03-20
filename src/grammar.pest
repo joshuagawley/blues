@@ -1,0 +1,81 @@
+program = _{ SOI ~ declarations ~ EOI }
+
+declarations =  { declaration* }
+declaration  = _{ let_decl | let_box_decl | type_decl }
+let_decl     =  { "let" ~ pattern ~ "=" ~ term }
+let_box_decl =  { "let" ~ "box" ~ ident ~ "<=" ~ term ~ "in" ~ term }
+type_decl    =  { "let" ~ "type" ~ ident ~ "=" ~ type }
+
+type         =  { primary_type ~ (type_infix ~ primary_type)* }
+type_infix   = _{ type_arrow }
+type_arrow   =  { "->" }
+primary_type = _{ list_type | tuple_type | variant_type | ident }
+field_types  = _{ field_type ~ ("," ~ field_type)* }
+field_type   =  { ident ~ ":" ~ type }
+list_type    =  { "[" ~ type ~ "]" }
+tuple_type   =  { "(" ~ types? ~ ")" }
+types        = _{ type ~ ("," ~ type)* }
+variant_type =  { "<" ~ field_types? ~ ">" }
+
+term         = _{ abs_term | fix_term | box_term | if_term | let_term | let_box_term | match_term | expr_term | unit_term }
+abs_term     =  { pattern ~ ":" ~ type ~ "=>" ~ term }
+fix_term     =  { "fix" ~ term }
+box_term     =  { "box" ~ term }
+if_term      =  { "if" ~ term ~ "then" ~ term ~ "else" ~ term }
+let_term     =  { "let" ~ pattern ~ "=" ~ term ~ "in" ~ term }
+let_box_term =  { "let" ~ "box" ~ pattern ~ "<=" ~ term ~ "in" ~ term }
+match_term   =  { "match" ~ term ~ "with" ~ match_arms }
+match_arms   = _{ match_arm ~ ("," ~ match_arm)* }
+match_arm    =  { "<" ~ ident ~ "=" ~ pattern ~ ">" ~ "=>" ~ term }
+unit_term    =  { "_" }
+
+expr_term = { prefix? ~ app_term ~ postfix? ~ (infix ~ prefix? ~ app_term)* }
+
+infix = _{ or_op | and_op | eq_op | ne_op | ge_op | gt_op | le_op | lt_op | add_op | sub_op | mul_op | div_op }
+
+or_op  = { "||" }
+and_op = { "&&" }
+eq_op  = { "==" }
+ne_op  = { "!=" }
+ge_op  = { ">=" }
+gt_op  = { ">" }
+le_op  = { "<=" }
+lt_op  = { "<" }
+add_op = { "+" }
+sub_op = { "-" }
+mul_op = { "*" }
+div_op = { "/" }
+
+postfix = _{ as }
+
+as = { "as" ~ type }
+
+prefix = _{ neg_op | not_op }
+
+neg_op = { "-" }
+not_op = { "!" }
+
+app_term     =  { proj_term+ }
+proj_term    =  { primary_term ~ proj_field* }
+proj_field   = _{ "." ~ (ident | nat) }
+primary_term = _{ list_term | tuple_term | variant_term | ident | nat }
+list_term    =  { "[" ~ terms? ~ "]" }
+terms        = _{ term ~ ("," ~ term)* }
+tuple_term   =  { "(" ~ terms? ~ ")" }
+variant_term =  { "<" ~ ident ~ "=" ~ term ~ ">" }
+
+pattern    = _{ record_pat | tuple_pat | wild_pat | ident }
+record_pat =  { "{" ~ field_pats ~ "}" }
+field_pats = _{ field_pat ~ ("," ~ field_pat)* }
+field_pat  =  { ident ~ ("=" ~ pattern)? }
+tuple_pat  =  { "(" ~ patterns? ~ ")" }
+patterns   = _{ pattern ~ ("," ~ pattern)* }
+wild_pat   =  { "_" }
+
+ident   = @{ keyword? ~ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_" | "'")* }
+keyword =  { "_" | "as" | "box" | "else" | "fix" | "fn" | "if" | "in" | "let" | "match" | "then" | "with" }
+
+nat = @{ ASCII_DIGIT+ }
+
+COMMENT    = _{ "--" ~ (!NEWLINE ~ ANY)* }
+WHITESPACE = _{ WHITE_SPACE }
