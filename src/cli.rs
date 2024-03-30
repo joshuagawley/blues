@@ -7,5 +7,5 @@ use clap::Parser;
 pub struct Cli {
     /// The path to the source file
     #[arg(value_name = "FILE")]
-    pub source_path: PathBuf
+    pub source_path: PathBuf,
 }

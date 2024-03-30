@@ -1,5 +1,5 @@
 use crate::syntax::abstraction::Abstraction;
-use crate::syntax::pattern;
+
 use crate::syntax::pattern::Pattern;
 use crate::syntax::term::Infix;
 use crate::syntax::term::Prefix;

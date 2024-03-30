@@ -1,8 +1,8 @@
-use std::{fs, path::Path};
 use clap::Parser as ClapParser;
 use cli::Cli;
 use eval::{context::Context, environment::Environment, prelude::Prelude, value::Value};
 use parser::Parser;
+use std::{fs, path::Path};
 use syntax::{
     program::{Declaration, Program},
     r#type::Type,
@@ -77,5 +77,4 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     real_main(&cli.source_path)
-    
 }

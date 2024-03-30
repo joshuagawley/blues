@@ -1,4 +1,4 @@
-use std::{collections::HashMap, marker::PhantomData};
+use std::collections::HashMap;
 
 use crate::{
     error::{pattern_error::PatternError, type_error::TypeError},
@@ -261,7 +261,7 @@ impl Context {
             _ => unimplemented!(),
         }
     }
-    
+
     pub fn type_of(&mut self, term: &Term) -> Result<Type, Errors> {
         match term {
             Term::Box(value) => {
@@ -417,7 +417,7 @@ impl Context {
                 let value_type = self.resolve_type_of(value)?;
                 Ok(Type::Variant(HashMap::from([(label.clone(), value_type)])))
             }
-            _ => self.common_type_of(term)
+            _ => self.common_type_of(term),
         }
     }
 
@@ -507,7 +507,7 @@ impl Context {
                     Err(errors)
                 }
             }
-            Type::Modal(inner_type) => todo!(),
+            Type::Modal(_inner_type) => todo!(),
             _ => Ok(r#type),
         }
     }
