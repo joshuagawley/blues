@@ -18,7 +18,12 @@ mod syntax;
 fn real_main(source_path: &Path) -> anyhow::Result<()> {
     // let input = fs::read_to_string("/Users/jg/dev/Projects/new_moody/fac.mdy")?;
     let input = fs::read_to_string(source_path)?;
-    let Program(decls) = Parser::new("input".to_owned()).parse_source(&input)?;
+    let Program(decls) = Parser::new(
+        source_path
+            .to_str()
+            .map_or_else(|| "".to_owned(), |str| str.to_owned()),
+    )
+    .parse_source(&input)?;
 
     let mut context = Context::default();
     let mut env = Environment::default();
