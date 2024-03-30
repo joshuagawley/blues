@@ -1,5 +1,6 @@
-use std::fs;
-
+use std::{fs, path::Path};
+use clap::Parser as ClapParser;
+use cli::Cli;
 use eval::{context::Context, environment::Environment, prelude::Prelude, value::Value};
 use parser::Parser;
 use syntax::{
@@ -8,13 +9,15 @@ use syntax::{
     term::Term,
 };
 
+mod cli;
 mod error;
 mod eval;
 mod parser;
 mod syntax;
 
-fn main() -> anyhow::Result<()> {
-    let input = fs::read_to_string("/Users/jg/dev/Projects/new_moody/fac.mdy")?;
+fn real_main(source_path: &Path) -> anyhow::Result<()> {
+    // let input = fs::read_to_string("/Users/jg/dev/Projects/new_moody/fac.mdy")?;
+    let input = fs::read_to_string(source_path)?;
     let Program(decls) = Parser::new("input".to_owned()).parse_source(&input)?;
 
     let mut context = Context::default();
@@ -68,4 +71,11 @@ fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+fn main() -> anyhow::Result<()> {
+    let cli = Cli::parse();
+
+    real_main(&cli.source_path)
+    
 }

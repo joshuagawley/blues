@@ -7,6 +7,7 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 anyhow = "1.0.79"
+clap = { version = "4.5.4", features = ["derive"] }
 indexmap = "2.2.5"
 pest = "2.7.7"
 pest_derive = "2.7.7"
