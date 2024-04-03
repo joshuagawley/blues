@@ -90,12 +90,11 @@ impl Parser {
                         .collect();
                     Type::Variant(variants)
                 }
-                Rule::box_term => {
-                    let mut inner_rules = pair.into_inner();
-                    let inner_type = self.parse_type(inner_rules.next().unwrap());
-                    Type::Modal(Box::new(inner_type))
-                }
                 Rule::ident => Type::Variable(pair.as_str().to_string()),
+                _ => unreachable!(),
+            })
+            .map_prefix(|op, r#type| match op.as_rule() {
+                Rule::box_type => Type::Modal(Box::new(r#type)),
                 _ => unreachable!(),
             })
             .map_infix(|left, op, right| match op.as_rule() {

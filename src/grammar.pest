@@ -6,9 +6,11 @@ let_decl     =  { "let" ~ pattern ~ "=" ~ term }
 let_box_decl =  { "let" ~ "box" ~ ident ~ "<=" ~ term ~ "in" ~ term }
 type_decl    =  { "let" ~ "type" ~ ident ~ "=" ~ type }
 
-type         =  { primary_type ~ (type_infix ~ primary_type)* }
+type         =  { type_prefix? ~ primary_type ~ (type_infix ~ primary_type)* }
 type_infix   = _{ type_arrow }
+type_prefix  = _{ box_type }
 type_arrow   =  { "->" }
+box_type     =  { "[]" }
 primary_type = _{ list_type | tuple_type | variant_type | ident }
 field_types  = _{ field_type ~ ("," ~ field_type)* }
 field_type   =  { ident ~ ":" ~ type }
@@ -17,9 +19,10 @@ tuple_type   =  { "(" ~ types? ~ ")" }
 types        = _{ type ~ ("," ~ type)* }
 variant_type =  { "<" ~ field_types? ~ ">" }
 
-term         = _{ abs_term | fix_term | box_term | if_term | let_term | let_box_term | match_term | expr_term | unit_term }
+term         = _{ abs_term | fix_term | mfix_term | box_term | if_term | let_term | let_box_term | match_term | expr_term | unit_term }
 abs_term     =  { pattern ~ ":" ~ type ~ "=>" ~ term }
 fix_term     =  { "fix" ~ term }
+mfix_term    =  { "mfix" ~ term}
 box_term     =  { "box" ~ term }
 if_term      =  { "if" ~ term ~ "then" ~ term ~ "else" ~ term }
 let_term     =  { "let" ~ pattern ~ "=" ~ term ~ "in" ~ term }
