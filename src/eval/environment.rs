@@ -88,6 +88,18 @@ impl Environment {
                 let fixed = Term::Application(abs.clone(), Box::new(arg));
                 self.eval(&fixed)
             }
+            Term::MFix(abs) => {
+                let arg = Term::Abstraction(Abstraction {
+                    param: Pattern::Variable("v".to_owned()),
+                    param_type: Type::Tuple(Vec::new()),
+                    body: Box::new(Term::Application(
+                        Box::new(term.clone()),
+                        Box::new(Term::Variable("v".into())),
+                    )),
+                });
+                let fixed = Term::Application(abs.clone(), Box::new(arg));
+                self.eval(&fixed)
+            }
             Term::If(guard, if_true, if_false) => {
                 let Value::Bool(guard) = self.eval(guard)? else {
                     return Err(anyhow!("If expected boolean in condition!"));
