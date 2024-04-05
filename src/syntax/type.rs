@@ -1,5 +1,7 @@
 use core::fmt::Display;
 use std::collections::HashMap;
+use crate::error::Errors;
+use crate::error::type_error::TypeError;
 use crate::parser::Rule::infix;
 
 #[derive(Clone, Debug)]
@@ -39,6 +41,20 @@ impl Type {
 
     pub fn is_unit(&self) -> bool {
         self.get_inner_type() == &Self::Unit
+    }
+    
+    pub fn unroll_abs(self) -> Result<(Box<Type>, Box<Type>), Errors> {
+        let Self::Abstraction(param_type, return_type) = self else {
+            return Err(vec![TypeError::Mismatch {
+                expected: Type::Abstraction(
+                    Box::new(Type::Variable("*".to_owned())),
+                    Box::new(Type::Variable("*".to_owned())),
+                ),
+                actual: self,
+            }
+                .into()]);
+        };
+        return Ok((param_type, return_type))
     }
 }
 

@@ -14,8 +14,7 @@ use crate::{
 
 use anyhow::anyhow;
 use indexmap::IndexMap;
-
-type Errors = Vec<anyhow::Error>;
+use crate::error::{Errors, MaybeType};
 
 #[derive(Clone, Default, Debug)]
 pub struct Context {
@@ -60,7 +59,7 @@ impl Context {
         self.types.insert(name, r#type);
     }
 
-    fn type_of_infix(&mut self, left: &Term, op: &Infix, right: &Term) -> Result<Type, Errors> {
+    fn type_of_infix(&mut self, left: &Term, op: &Infix, right: &Term) -> MaybeType {
         let left_type = self.resolve_type_of(left)?;
         let right_type = self.resolve_type_of(right)?;
 
@@ -169,7 +168,7 @@ impl Context {
         param: &Pattern,
         param_type: &Type,
         body: &Term,
-    ) -> Result<Type, Errors> {
+    ) -> MaybeType {
         let mut context = self.clone();
         let param_type = self.resolve(param_type.clone())?;
         context.bind_pattern(param, term, &param_type)?;
@@ -177,7 +176,7 @@ impl Context {
         Ok(Type::Abstraction(Box::new(param_type), Box::new(body_type)))
     }
 
-    fn type_of_application(&mut self, abs: &Term, arg: &Term) -> Result<Type, Errors> {
+    fn type_of_application(&mut self, abs: &Term, arg: &Term) -> MaybeType {
         let abs_type = self.resolve_type_of(abs)?;
         let arg_type = self.resolve_type_of(arg)?;
 
@@ -210,7 +209,7 @@ impl Context {
         }
     }
 
-    fn type_of_ascription(&mut self, value: &Term, as_type: &Type) -> Result<Type, Errors> {
+    fn type_of_ascription(&mut self, value: &Term, as_type: &Type) -> MaybeType {
         let as_type = self.resolve(as_type.clone())?;
         let value_type = self.resolve_type_of(value)?;
 
@@ -236,22 +235,12 @@ impl Context {
         }
     }
 
-    fn type_of_fix(&mut self, abs: &Term) -> Result<Type, Errors> {
+    fn type_of_fix(&mut self, abs: &Term) -> MaybeType {
         // eprintln!("Getting type of local fixpoint");
         // eprintln!("Getting function type");
         // eprintln!("abs: {abs}");
-        let abs_type = self.resolve_type_of(abs)?;
+        let (param_type, return_type) = self.resolve_type_of(abs)?.unroll_abs()?;
         // eprintln!("abs_type: {abs_type:#?}");
-        let Type::Abstraction(param_type, return_type) = abs_type else {
-            return Err(vec![TypeError::Mismatch {
-                expected: Type::Abstraction(
-                    Box::new(Type::Variable("*".to_owned())),
-                    Box::new(Type::Variable("*".to_owned())),
-                ),
-                actual: abs_type,
-            }
-            .into()]);
-        };
 
         let param_type = self.resolve(*param_type)?;
         let return_type = self.resolve(*return_type)?;
@@ -267,48 +256,21 @@ impl Context {
         }
     }
 
-    fn type_of_mfix(&mut self, abs: &Term) -> Result<Type, Errors> {
+    fn type_of_mfix(&mut self, abs: &Term) -> MaybeType {
         // eprintln!("Getting type of mobile fixpoint");
         // eprintln!("Getting function type");
         // eprintln!("abs: {abs}");
         let abs_type = self.resolve_type_of(abs)?;
         // eprintln!("abs_type: {abs_type:#?}");
-        let Type::Abstraction(param_type, return_type) = abs_type else {
-            return Err(vec![TypeError::Mismatch {
-                expected: Type::Abstraction(
-                    Box::new(Type::Variable("*".to_owned())),
-                    Box::new(Type::Variable("*".to_owned())),
-                ),
-                actual: abs_type,
-            }
-            .into()]);
-        };
+        let (param_type, return_type) = abs_type.unroll_abs()?;
 
         // eprintln!("Resolving parameter type");
         let param_type = self.resolve(*param_type)?;
         let return_type = self.resolve(*return_type)?;
         
-        let Type::Abstraction(input_param_type, input_return_type) = param_type else {
-            return Err(vec![TypeError::Mismatch {
-                expected: Type::Abstraction(
-                    Box::new(Type::Variable("*".to_owned())),
-                    Box::new(Type::Variable("*".to_owned())),
-                ),
-                actual: param_type,
-            }
-                .into()]);
-        };
-
-        let Type::Abstraction(output_param_type, output_return_type) = return_type else {
-            return Err(vec![TypeError::Mismatch {
-                expected: Type::Abstraction(
-                    Box::new(Type::Variable("*".to_owned())),
-                    Box::new(Type::Variable("*".to_owned())),
-                ),
-                actual: return_type,
-            }
-                .into()]);
-        };
+        let (input_param_type, input_return_type) = param_type.unroll_abs()?;
+        
+        let (output_param_type, output_return_type) = return_type.unroll_abs()?;
         
         if input_return_type != output_return_type {
             return Err(vec![TypeError::Mismatch {
@@ -334,7 +296,7 @@ impl Context {
         guard: &Term,
         if_true: &Term,
         if_false: &Term,
-    ) -> Result<Type, Errors> {
+    ) -> MaybeType {
         let guard_type = self.resolve_type_of(guard)?;
         if !guard_type.is_bool() {
             return Err(vec![TypeError::Mismatch {
@@ -363,7 +325,7 @@ impl Context {
         term: &Term,
         value: &Term,
         arms: &HashMap<String, (Pattern, Term)>,
-    ) -> Result<Type, Errors> {
+    ) -> MaybeType {
         let value_type = self.resolve_type_of(value)?;
         let Type::Variant(variants) = &value_type else {
             return Err(vec![TypeError::Mismatch {
@@ -441,7 +403,7 @@ impl Context {
         }
     }
 
-    fn type_of_prefix(&mut self, op: &Prefix, right: &Term) -> Result<Type, Errors> {
+    fn type_of_prefix(&mut self, op: &Prefix, right: &Term) -> MaybeType {
         let right_type = self.resolve_type_of(right)?;
         match (op, right_type.get_inner_type()) {
             (Prefix::Neg, Type::Int) => Ok(Type::Int),
@@ -508,7 +470,7 @@ impl Context {
         }
     }
 
-    pub fn type_of(&mut self, term: &Term) -> Result<Type, Errors> {
+    pub fn type_of(&mut self, term: &Term) -> MaybeType {
         // eprintln!("Checking type of {term}");
         match term {
             Term::Abstraction(Abstraction {
@@ -622,7 +584,7 @@ impl Context {
         Ok(())
     }
 
-    pub fn resolve(&self, r#type: Type) -> Result<Type, Errors> {
+    pub fn resolve(&self, r#type: Type) -> MaybeType {
         match r#type {
             Type::Abstraction(param_type, return_type) => {
                 let param_type = self.resolve(*param_type)?;
@@ -678,7 +640,7 @@ impl Context {
         }
     }
 
-    pub fn resolve_type_of(&mut self, term: &Term) -> Result<Type, Errors> {
+    pub fn resolve_type_of(&mut self, term: &Term) -> MaybeType {
         let r#type = self.type_of(term)?;
         // eprintln!("Type: {}", r#type);
         self.resolve(r#type)
