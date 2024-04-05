@@ -24,7 +24,7 @@ fn real_main(source_path: &Path) -> anyhow::Result<()> {
             .map_or_else(|| "".to_owned(), |str| str.to_owned()),
     )
     .parse_source(&input)?;
-
+    
     let mut context = Context::default();
     let mut env = Environment::default();
 

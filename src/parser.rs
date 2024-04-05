@@ -90,13 +90,12 @@ impl Parser {
                         .collect();
                     Type::Variant(variants)
                 }
-                Rule::box_term => {
-                    let mut inner_rules = pair.into_inner();
-                    let inner_type = self.parse_type(inner_rules.next().unwrap());
-                    Type::Modal(Box::new(inner_type))
-                }
                 Rule::ident => Type::Variable(pair.as_str().to_string()),
-                _ => unreachable!(),
+                _ => unreachable!("{pair}"),
+            })
+            .map_prefix(|op, right| match op.as_rule() {
+                Rule::box_type => Type::Modal(Box::new(right)),
+                _ => unreachable!("{op}")
             })
             .map_infix(|left, op, right| match op.as_rule() {
                 Rule::type_arrow => Type::Abstraction(Box::new(left), Box::new(right)),
@@ -149,12 +148,16 @@ impl Parser {
                 let body = Box::new(self.parse_term(inner_rules.next().unwrap()));
                 Term::LetBox(pattern, value, body)
             }
-
             Rule::match_term => {
                 let mut inner_rules = pair.into_inner();
                 let value = Box::new(self.parse_term(inner_rules.next().unwrap()));
                 let arms = inner_rules.map(|pair| self.parse_match_arm(pair)).collect();
                 Term::Match(value, arms)
+            }
+            Rule::mfix_term => {
+                let mut inner_rules = pair.into_inner();
+                let value = Box::new(self.parse_term(inner_rules.next().unwrap()));
+                Term::MFix(value)
             }
             Rule::expr_term => self.parse_expr(pair),
             Rule::unit_term => Term::Unit,
@@ -267,7 +270,9 @@ impl Parser {
 
 impl Default for Parser {
     fn default() -> Self {
-        let type_parser = PrattParser::new().op(Op::infix(Rule::type_arrow, Assoc::Right));
+        let type_parser = PrattParser::new()
+            .op(Op::infix(Rule::type_arrow, Assoc::Right))
+            .op(Op::prefix(Rule::box_type));
         let expr_parser = PrattParser::new()
             .op(Op::infix(Rule::or_op, Assoc::Left))
             .op(Op::infix(Rule::and_op, Assoc::Left))

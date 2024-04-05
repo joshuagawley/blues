@@ -11,6 +11,7 @@ pub enum Term {
     Bool(bool),
     Box(Box<Term>),
     Fix(Box<Term>),
+    MFix(Box<Term>),
     If(Box<Term>, Box<Term>, Box<Term>),
     Int(i64),
     Infix(Box<Term>, Infix, Box<Term>),
@@ -35,6 +36,7 @@ impl Display for Term {
             Term::Box(value) => write!(f, "box {value}"),
             Term::Bool(b) => write!(f, "{b}"),
             Term::Fix(value) => write!(f, "fix {value}"),
+            Term::MFix(value) => write!(f, "mfix {value}"),
             Term::If(guard, if_true, if_false) => {
                 write!(f, "if {guard} then {if_true} else {if_false}")
             }

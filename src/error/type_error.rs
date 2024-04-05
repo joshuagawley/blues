@@ -4,6 +4,8 @@ use crate::syntax::r#type::Type;
 
 #[derive(Error, Debug)]
 pub enum TypeError {
+    #[error("Trying to box expr `{0}` which has local deps")]
+    BoxedExprHasLocalDeps(String),
     #[error("Mismatched types: expected {expected}, got {actual}")]
     Mismatch { expected: Type, actual: Type },
     #[error("Missing variants: ")]
