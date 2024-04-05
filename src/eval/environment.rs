@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
 
@@ -41,6 +42,8 @@ fn eval_prefix(op: &Prefix, right: Value) -> anyhow::Result<Value> {
 }
 
 pub fn eval_parallel(mut env: Environment, body: Box<Term>) -> anyhow::Result<Value> {
+    // eprintln!("Env is {env:#?}");
+    // eprintln!("Spawning new thread to evaluate {body}");
     let handle = std::thread::spawn(move || env.eval(&body));
     handle.join().unwrap()
 }
@@ -75,20 +78,9 @@ impl Environment {
             }
             Term::Ascription(term, _) => self.eval(term),
             Term::Bool(b) => Ok(Value::Bool(*b)),
-            Term::Box(body) => eval_parallel(self.clone(), body.clone()),
-            Term::Fix(abs) => {
-                let arg = Term::Abstraction(Abstraction {
-                    param: Pattern::Variable("v".to_owned()),
-                    param_type: Type::Tuple(Vec::new()),
-                    body: Box::new(Term::Application(
-                        Box::new(term.clone()),
-                        Box::new(Term::Variable("v".into())),
-                    )),
-                });
-                let fixed = Term::Application(abs.clone(), Box::new(arg));
-                self.eval(&fixed)
-            }
-            Term::MFix(abs) => {
+            Term::Box(body) => self.eval(body),
+            // Fix and MFix
+            Term::Fix(abs) | Term::MFix(abs) => {
                 let arg = Term::Abstraction(Abstraction {
                     param: Pattern::Variable("v".to_owned()),
                     param_type: Type::Tuple(Vec::new()),
@@ -126,7 +118,23 @@ impl Environment {
                 let value = self.eval(value)?;
                 let mut env = self.clone();
                 env.bind_pattern(pattern, value)?;
-                eval_parallel(env, body.clone())
+
+                let cloned_body = body.clone();
+
+                match *cloned_body {
+                    Term::Prefix(op, right) => {
+                        let right = eval_parallel(env, right)?;
+                        eval_prefix(&op, right)
+                    }
+                    Term::Int(i) => Ok(Value::Int(i)),
+                    Term::Bool(b) => Ok(Value::Bool(b)),
+                    Term::Infix(left, op, right) => {
+                        let left = env.eval(&left)?;
+                        let right = env.eval(&right)?;
+                        eval_infix(left, &op, right)
+                    }
+                    _ => eval_parallel(env, cloned_body)
+                }
             }
             Term::List(values) => self.eval_vec_terms(values, Value::List),
             Term::Match(value, arms) => {
@@ -179,10 +187,8 @@ impl Environment {
         Ok(())
     }
 
-    pub fn get(&self, name: &str) -> anyhow::Result<&Value> {
-        self.values
-            .get(name)
-            .ok_or(anyhow!("Variable {name} not in environment!"))
+    pub fn get(&mut self, name: &str) -> anyhow::Result<&Value> {
+        self.values.get(name).ok_or(anyhow!("Variable {name} not in environment!"))
     }
 
     pub fn insert(&mut self, k: String, v: Value) {

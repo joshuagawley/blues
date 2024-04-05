@@ -62,11 +62,6 @@ impl Parser {
     fn parse_type(&self, pair: Pair<Rule>) -> Type {
         self.type_parser
             .map_primary(|pair| match pair.as_rule() {
-                Rule::box_type => {
-                    let mut inner_rules = pair.into_inner();
-                    let inner_type = self.parse_type(inner_rules.next().unwrap());
-                    Type::Modal(Box::new(inner_type))
-                }
                 Rule::list_type => {
                     let mut inner_rules = pair.into_inner();
                     let value_type = self.parse_type(inner_rules.next().unwrap());
@@ -97,6 +92,10 @@ impl Parser {
                 }
                 Rule::ident => Type::Variable(pair.as_str().to_string()),
                 _ => unreachable!("{pair}"),
+            })
+            .map_prefix(|op, right| match op.as_rule() {
+                Rule::box_type => Type::Modal(Box::new(right)),
+                _ => unreachable!("{op}")
             })
             .map_infix(|left, op, right| match op.as_rule() {
                 Rule::type_arrow => Type::Abstraction(Box::new(left), Box::new(right)),
@@ -271,7 +270,9 @@ impl Parser {
 
 impl Default for Parser {
     fn default() -> Self {
-        let type_parser = PrattParser::new().op(Op::infix(Rule::type_arrow, Assoc::Right));
+        let type_parser = PrattParser::new()
+            .op(Op::infix(Rule::type_arrow, Assoc::Right))
+            .op(Op::prefix(Rule::box_type));
         let expr_parser = PrattParser::new()
             .op(Op::infix(Rule::or_op, Assoc::Left))
             .op(Op::infix(Rule::and_op, Assoc::Left))

@@ -1,5 +1,6 @@
 use core::fmt::Display;
 use std::collections::HashMap;
+use crate::parser::Rule::infix;
 
 #[derive(Clone, Debug)]
 pub enum Type {
@@ -18,17 +19,26 @@ impl Type {
     pub fn is_bool(&self) -> bool {
         self == &Self::Bool
     }
+    
+    pub fn get_inner_type(&self) -> &Type {
+        match self {
+            Type::Modal(inner) => {
+                inner.get_inner_type()
+            }
+            _ => self
+        }
+    }
 
     pub fn is_int(&self) -> bool {
-        self == &Self::Int
+        self.get_inner_type() == &Self::Int
     }
 
     pub fn is_tuple(&self) -> bool {
-        matches!(self, Self::Tuple(..))
+        matches!(self.get_inner_type(), Self::Tuple(..))
     }
 
     pub fn is_unit(&self) -> bool {
-        self == &Self::Unit
+        self.get_inner_type() == &Self::Unit
     }
 }
 
@@ -84,8 +94,8 @@ impl Display for Type {
                 write!(f, "<{}>", variants.join(", "))
             }
             Type::Modal(inner_type) => match **inner_type {
-                Type::Abstraction(_, _) => write!(f, "({inner_type})"),
-                _ => write!(f, "{inner_type}"),
+                Type::Abstraction(_, _) => write!(f, "[]({inner_type})"),
+                _ => write!(f, "[]{inner_type}"),
             },
         }
     }
