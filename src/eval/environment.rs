@@ -126,13 +126,14 @@ impl Environment {
                         let right = eval_parallel(env, right)?;
                         eval_prefix(&op, right)
                     }
-                    Term::Int(i) => Ok(Value::Int(i)),
-                    Term::Bool(b) => Ok(Value::Bool(b)),
                     Term::Infix(left, op, right) => {
-                        let left = env.eval(&left)?;
-                        let right = env.eval(&right)?;
+                        let left = eval_parallel(env.clone() , left)?;
+                        let right = eval_parallel(env, right)?;
                         eval_infix(left, &op, right)
                     }
+                    Term::Int(i) => Ok(Value::Int(i)),
+                    Term::Bool(b) => Ok(Value::Bool(b)),
+                    Term::Unit => Ok(Value::Unit),
                     _ => eval_parallel(env, cloned_body)
                 }
             }

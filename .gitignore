@@ -3,3 +3,4 @@
 *.mdy
 /firedbg
 /.idea
+flamegraph.svg

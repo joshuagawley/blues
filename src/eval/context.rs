@@ -624,6 +624,7 @@ impl Context {
                 let mut errors = Vec::new();
                 for (label, variant_type) in variants {
                     match self.resolve(variant_type) {
+                        // We don't need to know if the key exists already
                         Ok(variant_type) => drop(variant_types.insert(label, variant_type)),
                         Err(mut err) => errors.append(&mut err),
                     }
