@@ -42,8 +42,6 @@ fn eval_prefix(op: &Prefix, right: Value) -> anyhow::Result<Value> {
 }
 
 pub fn eval_parallel(mut env: Environment, body: Arc<Term>) -> anyhow::Result<Value> {
-    // eprintln!("Env is {env:#?}");
-    // eprintln!("Spawning new thread to evaluate {body}");
     let handle = std::thread::spawn(move || env.eval(&body));
     handle.join().unwrap()
 }
@@ -137,7 +135,6 @@ impl Environment {
                     _ => eval_parallel(env, cloned_body)
                 }
             }
-            Term::List(values) => self.eval_vec_terms(values, Value::List),
             Term::Match(value, arms) => {
                 let Value::Variant { label, value } = self.eval(value)? else {
                     return Err(anyhow!("Match expected variant"));

@@ -63,11 +63,6 @@ impl Parser {
     fn parse_type(&self, pair: Pair<Rule>) -> Type {
         self.type_parser
             .map_primary(|pair| match pair.as_rule() {
-                Rule::list_type => {
-                    let mut inner_rules = pair.into_inner();
-                    let value_type = self.parse_type(inner_rules.next().unwrap());
-                    Type::List(Some(Box::new(value_type)))
-                }
                 Rule::tuple_type => {
                     let inner_rules = pair.into_inner();
                     let mut types = inner_rules
@@ -224,11 +219,6 @@ impl Parser {
 
     fn parse_primary(&self, pair: Pair<Rule>) -> Term {
         match pair.as_rule() {
-            Rule::list_term => Term::List(
-                pair.into_inner()
-                    .map(|pair| self.parse_term(pair))
-                    .collect(),
-            ),
             Rule::tuple_term => {
                 let inner_rules = pair.into_inner();
                 let mut values = inner_rules

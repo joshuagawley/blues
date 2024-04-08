@@ -2,14 +2,12 @@ use core::fmt::Display;
 use std::collections::HashMap;
 use crate::error::Errors;
 use crate::error::type_error::TypeError;
-use crate::parser::Rule::infix;
 
 #[derive(Clone, Debug)]
 pub enum Type {
     Abstraction(Box<Type>, Box<Type>),
     Bool,
     Int,
-    List(Option<Box<Type>>),
     Tuple(Vec<Type>),
     Variable(String),
     Variant(HashMap<String, Type>),
@@ -18,9 +16,6 @@ pub enum Type {
 }
 
 impl Type {
-    pub fn is_bool(&self) -> bool {
-        self == &Self::Bool
-    }
     
     pub fn get_inner_type(&self) -> &Type {
         match self {
@@ -30,6 +25,9 @@ impl Type {
             _ => self
         }
     }
+    pub fn is_bool(&self) -> bool {
+        self == &Self::Bool
+    }
 
     pub fn is_int(&self) -> bool {
         self.get_inner_type() == &Self::Int
@@ -37,10 +35,6 @@ impl Type {
 
     pub fn is_tuple(&self) -> bool {
         matches!(self.get_inner_type(), Self::Tuple(..))
-    }
-
-    pub fn is_unit(&self) -> bool {
-        self.get_inner_type() == &Self::Unit
     }
     
     pub fn unroll_abs(self) -> Result<(Box<Type>, Box<Type>), Errors> {
@@ -54,7 +48,7 @@ impl Type {
             }
                 .into()]);
         };
-        return Ok((param_type, return_type))
+        Ok((param_type, return_type))
     }
 }
 
@@ -65,7 +59,6 @@ impl PartialEq for Type {
             (Self::Bool, Self::Bool) => true,
             (Self::Int, Self::Int) => true,
             (Self::Unit, Self::Unit) => true,
-            (Self::List(l1), Self::List(r1)) => l1 == r1,
             (Self::Tuple(l1), Self::Tuple(r1)) => l1 == r1,
             (Self::Variable(l1), Self::Variable(r1)) => l1 == r1,
             (Self::Variant(l1), Self::Variant(r1)) => l1 == r1,
@@ -88,15 +81,6 @@ impl Display for Type {
             Type::Bool => write!(f, "Bool"),
             Type::Int => write!(f, "Int"),
             Type::Unit => write!(f, "Unit"),
-            Type::List(Some(values_type)) => {
-                write!(f, "[")?;
-                match **values_type {
-                    Type::Abstraction(_, _) => write!(f, "({values_type})")?,
-                    _ => write!(f, "{values_type}")?,
-                }
-                write!(f, "]")
-            }
-            Type::List(None) => write!(f, "[]"),
             Type::Tuple(types) => {
                 let types = types.iter().map(Type::to_string).collect::<Vec<_>>();
                 write!(f, "({})", types.join(", "))

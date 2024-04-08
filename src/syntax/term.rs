@@ -18,7 +18,6 @@ pub enum Term {
     Infix(Arc<Term>, Infix, Arc<Term>),
     Let(Pattern, Arc<Term>, Arc<Term>),
     LetBox(Pattern, Arc<Term>, Arc<Term>),
-    List(Vec<Term>),
     Match(Arc<Term>, HashMap<String, (Pattern, Term)>),
     Postfix(Arc<Term>, Postfix),
     Prefix(Prefix, Arc<Term>),
@@ -45,11 +44,7 @@ impl Display for Term {
             Term::Infix(lhs, op, rhs) => write!(f, "{lhs} {op} {rhs}"),
             Term::Let(pattern, value, body) => write!(f, "let {pattern} = {value} in {body}"),
             Term::LetBox(pattern, value, body) => {
-                write!(f, "let box {pattern} <= {value} in {body}")
-            }
-            Term::List(values) => {
-                let values = values.iter().map(Term::to_string).collect::<Vec<_>>();
-                write!(f, "[{}]", values.join(", "))
+                write!(f, "let box {pattern} = {value} in {body}")
             }
             Term::Match(value, arms) => {
                 let arms = arms

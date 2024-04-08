@@ -9,7 +9,6 @@ pub enum Value {
     Abstraction(Abstraction, Environment),
     Bool(bool),
     Int(i64),
-    List(Vec<Value>),
     Tuple(Vec<Value>),
     Unit,
     Variant { label: String, value: Box<Value> },
@@ -51,10 +50,6 @@ impl Display for Value {
             Value::Abstraction(abstraction, _) => write!(f, "{abstraction}"),
             Value::Bool(b) => write!(f, "{b}"),
             Value::Int(n) => write!(f, "{n}"),
-            Value::List(values) => {
-                let values = values.iter().map(Value::to_string).collect::<Vec<_>>();
-                write!(f, "[{}]", values.join(", "))
-            }
             Value::Tuple(values) => {
                 let values = values.iter().map(Value::to_string).collect::<Vec<_>>();
                 write!(f, "[{}]", values.join(", "))

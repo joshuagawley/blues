@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-use std::hash::Hash;
-use std::slice::RSplit;
 
 use crate::{
     error::{pattern_error::PatternError, type_error::TypeError},
@@ -225,7 +223,6 @@ impl Context {
             {
                 Ok(as_type)
             }
-            (Type::List(None), Type::List(Some(_))) => Ok(as_type),
             (_, _) if value_type == as_type => Ok(value_type),
             _ => Err(vec![TypeError::Mismatch {
                 expected: value_type,
@@ -236,12 +233,7 @@ impl Context {
     }
 
     fn type_of_fix(&mut self, abs: &Term) -> MaybeType {
-        // eprintln!("Getting type of local fixpoint");
-        // eprintln!("Getting function type");
-        // eprintln!("abs: {abs}");
         let (param_type, return_type) = self.resolve_type_of(abs)?.unroll_abs()?;
-        // eprintln!("abs_type: {abs_type:#?}");
-
         let param_type = self.resolve(*param_type)?;
         let return_type = self.resolve(*return_type)?;
 
@@ -422,7 +414,6 @@ impl Context {
     }
 
     fn check_local_deps(&self, term: &Term) -> bool {
-        // eprintln!("checking local deps of {term}");
         match term {
             Term::Variable(name) => {
                 let r#type = self.get(name).unwrap();
@@ -434,9 +425,7 @@ impl Context {
                 param_type,
                 body,
             }) => matches!(param_type, Type::Modal(..)) && self.check_local_deps(body),
-            Term::Application(abs, arg) => {
-                // eprintln!("abs: {abs}");
-                // eprintln!("arg: {arg}");
+            Term::Application(_, arg) => {
                 self.check_local_deps(arg)
             },
             Term::Ascription(term, _) => self.check_local_deps(term),
@@ -457,7 +446,6 @@ impl Context {
             Term::LetBox(_, value, body) => {
                 self.check_local_deps(value) && self.check_local_deps(body)
             }
-            Term::List(terms) => terms.iter().all(|term| self.check_local_deps(term)),
             Term::Match(value, arms) => {
                 self.check_local_deps(value)
                     && arms.values().all(|(_, term)| self.check_local_deps(term))
@@ -500,33 +488,6 @@ impl Context {
                 context.bind_pattern(pattern, term, &value_type)?;
                 context.resolve_type_of(body)
             }
-            Term::List(values) => {
-                if values.is_empty() {
-                    Ok(Type::List(None))
-                } else {
-                    let values_type = self.resolve_type_of(values.first().unwrap())?;
-                    let mut errors = Vec::new();
-                    for value in values.iter().skip(1) {
-                        match self.resolve_type_of(value) {
-                            Ok(value_type) if value_type != values_type => errors.push(
-                                TypeError::Mismatch {
-                                    expected: values_type.clone(),
-                                    actual: value_type,
-                                }
-                                .into(),
-                            ),
-                            Ok(_) => {}
-                            Err(mut err) => errors.append(&mut err),
-                        }
-                    }
-
-                    if errors.is_empty() {
-                        Ok(Type::List(Some(Box::new(values_type))))
-                    } else {
-                        Err(errors)
-                    }
-                }
-            }
             Term::Match(value, arms) => self.type_of_match(term, value, arms),
             // Only postfix term is "as" which we've already dealt with
             Term::Postfix(..) => unimplemented!(),
@@ -545,7 +506,6 @@ impl Context {
                 let value_type = self.resolve_type_of(value)?;
                 Ok(Type::Variant(HashMap::from([(label.clone(), value_type)])))
             }
-            _ => unimplemented!(),
         }
     }
 
@@ -594,9 +554,6 @@ impl Context {
                     Box::new(return_type),
                 ))
             }
-            Type::List(Some(value_time)) => self
-                .resolve(*value_time)
-                .map(|value_type| Type::List(Some(Box::new(value_type)))),
             Type::Tuple(values) => {
                 let mut value_types = Vec::new();
                 let mut errors = Vec::new();
