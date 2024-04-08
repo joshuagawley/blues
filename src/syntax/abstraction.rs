@@ -1,11 +1,12 @@
 use super::{pattern::Pattern, r#type::Type, term::Term};
 use core::fmt::Display;
+use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct Abstraction {
     pub param: Pattern,
     pub param_type: Type,
-    pub body: Box<Term>,
+    pub body: Arc<Term>,
 }
 
 impl Display for Abstraction {

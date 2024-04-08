@@ -10,6 +10,7 @@ use pest::Parser as _;
 use pest::{iterators::Pair, pratt_parser::PrattParser};
 use pest_derive::Parser;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use crate::syntax::{
     program::{Declaration, Program},
@@ -110,7 +111,7 @@ impl Parser {
                 let mut inner_rules = pair.into_inner();
                 let param = self.parse_pattern(inner_rules.next().unwrap());
                 let param_type = self.parse_type(inner_rules.next().unwrap());
-                let body = Box::new(self.parse_term(inner_rules.next().unwrap()));
+                let body = Arc::new(self.parse_term(inner_rules.next().unwrap()));
                 Term::Abstraction(Abstraction {
                     param,
                     param_type,
@@ -119,44 +120,44 @@ impl Parser {
             }
             Rule::box_term => {
                 let mut inner_rules = pair.into_inner();
-                let value = Box::new(self.parse_term(inner_rules.next().unwrap()));
+                let value = Arc::new(self.parse_term(inner_rules.next().unwrap()));
                 Term::Box(value)
             }
             Rule::fix_term => {
                 let mut inner_rules = pair.into_inner();
-                let value = Box::new(self.parse_term(inner_rules.next().unwrap()));
+                let value = Arc::new(self.parse_term(inner_rules.next().unwrap()));
                 Term::Fix(value)
             }
             Rule::if_term => {
                 let mut inner_rules = pair.into_inner();
-                let condition = Box::new(self.parse_term(inner_rules.next().unwrap()));
-                let consequent = Box::new(self.parse_term(inner_rules.next().unwrap()));
-                let alternative = Box::new(self.parse_term(inner_rules.next().unwrap()));
+                let condition = Arc::new(self.parse_term(inner_rules.next().unwrap()));
+                let consequent = Arc::new(self.parse_term(inner_rules.next().unwrap()));
+                let alternative = Arc::new(self.parse_term(inner_rules.next().unwrap()));
                 Term::If(condition, consequent, alternative)
             }
             Rule::let_term => {
                 let mut inner_rules = pair.into_inner();
                 let pattern = self.parse_pattern(inner_rules.next().unwrap());
-                let value = Box::new(self.parse_term(inner_rules.next().unwrap()));
-                let body = Box::new(self.parse_term(inner_rules.next().unwrap()));
+                let value = Arc::new(self.parse_term(inner_rules.next().unwrap()));
+                let body = Arc::new(self.parse_term(inner_rules.next().unwrap()));
                 Term::Let(pattern, value, body)
             }
             Rule::let_box_term => {
                 let mut inner_rules = pair.into_inner();
                 let pattern = self.parse_pattern(inner_rules.next().unwrap());
-                let value = Box::new(self.parse_term(inner_rules.next().unwrap()));
-                let body = Box::new(self.parse_term(inner_rules.next().unwrap()));
+                let value = Arc::new(self.parse_term(inner_rules.next().unwrap()));
+                let body = Arc::new(self.parse_term(inner_rules.next().unwrap()));
                 Term::LetBox(pattern, value, body)
             }
             Rule::match_term => {
                 let mut inner_rules = pair.into_inner();
-                let value = Box::new(self.parse_term(inner_rules.next().unwrap()));
+                let value = Arc::new(self.parse_term(inner_rules.next().unwrap()));
                 let arms = inner_rules.map(|pair| self.parse_match_arm(pair)).collect();
                 Term::Match(value, arms)
             }
             Rule::mfix_term => {
                 let mut inner_rules = pair.into_inner();
-                let value = Box::new(self.parse_term(inner_rules.next().unwrap()));
+                let value = Arc::new(self.parse_term(inner_rules.next().unwrap()));
                 Term::MFix(value)
             }
             Rule::expr_term => self.parse_expr(pair),
@@ -182,24 +183,24 @@ impl Parser {
                         let mut inner_rules = pair.into_inner();
                         self.parse_primary(inner_rules.next().unwrap())
                     })
-                    .reduce(|f, a| Term::Application(Box::new(f), Box::new(a)))
+                    .reduce(|f, a| Term::Application(Arc::new(f), Arc::new(a)))
                     .unwrap()
             })
             .map_prefix(|op, right| match op.as_rule() {
-                Rule::neg_op => Term::Prefix(Prefix::Neg, Box::new(right)),
-                Rule::not_op => Term::Prefix(Prefix::Not, Box::new(right)),
+                Rule::neg_op => Term::Prefix(Prefix::Neg, Arc::new(right)),
+                Rule::not_op => Term::Prefix(Prefix::Not, Arc::new(right)),
                 _ => unreachable!(),
             })
             .map_postfix(|left, op| match op.as_rule() {
                 Rule::r#as => {
                     let as_type = self.parse_type(op.into_inner().next().unwrap());
-                    Term::Ascription(Box::new(left), as_type)
+                    Term::Ascription(Arc::new(left), as_type)
                 }
                 _ => unreachable!(),
             })
             .map_infix(|left, op, right| {
                 Term::Infix(
-                    Box::new(left),
+                    Arc::new(left),
                     match op.as_rule() {
                         Rule::or_op => Infix::Or,
                         Rule::and_op => Infix::And,
@@ -215,7 +216,7 @@ impl Parser {
                         Rule::div_op => Infix::Div,
                         _ => unreachable!(),
                     },
-                    Box::new(right),
+                    Arc::new(right),
                 )
             })
             .parse(pair.into_inner())
@@ -242,7 +243,7 @@ impl Parser {
             Rule::variant_term => {
                 let mut inner_rules = pair.into_inner();
                 let label = inner_rules.next().unwrap().as_str().to_string();
-                let value = Box::new(self.parse_term(inner_rules.next().unwrap()));
+                let value = Arc::new(self.parse_term(inner_rules.next().unwrap()));
                 Term::Variant(label, value)
             }
             Rule::ident => Term::Variable(pair.as_str().into()),

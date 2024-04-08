@@ -3,6 +3,7 @@ use cli::Cli;
 use eval::{context::Context, environment::Environment, prelude::Prelude, value::Value};
 use parser::Parser;
 use std::{fs, path::Path};
+use std::sync::Arc;
 use syntax::{
     program::{Declaration, Program},
     r#type::Type,
@@ -67,8 +68,8 @@ fn real_main(source_path: &Path) -> anyhow::Result<()> {
             if param_type.is_tuple() =>
         {
             let value = env.clone().eval(&Term::Application(
-                Box::new(Term::Abstraction(abs.clone())),
-                Box::new(Term::Tuple(Vec::new())),
+                Arc::new(Term::Abstraction(abs.clone())),
+                Arc::new(Term::Tuple(Vec::new())),
             ))?;
             println!("{value}")
         }

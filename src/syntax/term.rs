@@ -1,30 +1,31 @@
 use core::fmt::Display;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use super::{abstraction::Abstraction, pattern::Pattern, r#type::Type};
 
 #[derive(Clone, Debug)]
 pub enum Term {
     Abstraction(Abstraction),
-    Application(Box<Term>, Box<Term>),
-    Ascription(Box<Term>, Type),
+    Application(Arc<Term>, Arc<Term>),
+    Ascription(Arc<Term>, Type),
     Bool(bool),
-    Box(Box<Term>),
-    Fix(Box<Term>),
-    MFix(Box<Term>),
-    If(Box<Term>, Box<Term>, Box<Term>),
+    Box(Arc<Term>),
+    Fix(Arc<Term>),
+    MFix(Arc<Term>),
+    If(Arc<Term>, Arc<Term>, Arc<Term>),
     Int(i64),
-    Infix(Box<Term>, Infix, Box<Term>),
-    Let(Pattern, Box<Term>, Box<Term>),
-    LetBox(Pattern, Box<Term>, Box<Term>),
+    Infix(Arc<Term>, Infix, Arc<Term>),
+    Let(Pattern, Arc<Term>, Arc<Term>),
+    LetBox(Pattern, Arc<Term>, Arc<Term>),
     List(Vec<Term>),
-    Match(Box<Term>, HashMap<String, (Pattern, Term)>),
-    Postfix(Box<Term>, Postfix),
-    Prefix(Prefix, Box<Term>),
+    Match(Arc<Term>, HashMap<String, (Pattern, Term)>),
+    Postfix(Arc<Term>, Postfix),
+    Prefix(Prefix, Arc<Term>),
     Tuple(Vec<Term>),
     Unit,
     Variable(String),
-    Variant(String, Box<Term>),
+    Variant(String, Arc<Term>),
 }
 
 impl Display for Term {

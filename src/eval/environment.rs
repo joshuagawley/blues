@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use anyhow::anyhow;
 
@@ -41,7 +41,7 @@ fn eval_prefix(op: &Prefix, right: Value) -> anyhow::Result<Value> {
     }
 }
 
-pub fn eval_parallel(mut env: Environment, body: Box<Term>) -> anyhow::Result<Value> {
+pub fn eval_parallel(mut env: Environment, body: Arc<Term>) -> anyhow::Result<Value> {
     // eprintln!("Env is {env:#?}");
     // eprintln!("Spawning new thread to evaluate {body}");
     let handle = std::thread::spawn(move || env.eval(&body));
@@ -84,12 +84,12 @@ impl Environment {
                 let arg = Term::Abstraction(Abstraction {
                     param: Pattern::Variable("v".to_owned()),
                     param_type: Type::Tuple(Vec::new()),
-                    body: Box::new(Term::Application(
-                        Box::new(term.clone()),
-                        Box::new(Term::Variable("v".into())),
+                    body: Arc::new(Term::Application(
+                        Arc::new(term.clone()),
+                        Arc::new(Term::Variable("v".into())),
                     )),
                 });
-                let fixed = Term::Application(abs.clone(), Box::new(arg));
+                let fixed = Term::Application(abs.clone(), Arc::new(arg));
                 self.eval(&fixed)
             }
             Term::If(guard, if_true, if_false) => {
@@ -121,18 +121,18 @@ impl Environment {
 
                 let cloned_body = body.clone();
 
-                match *cloned_body {
+                match cloned_body.as_ref() {
                     Term::Prefix(op, right) => {
-                        let right = eval_parallel(env, right)?;
+                        let right = eval_parallel(env, right.clone())?;
                         eval_prefix(&op, right)
                     }
                     Term::Infix(left, op, right) => {
-                        let left = eval_parallel(env.clone() , left)?;
-                        let right = eval_parallel(env, right)?;
+                        let left = eval_parallel(env.clone() , left.clone())?;
+                        let right = eval_parallel(env, right.clone())?;
                         eval_infix(left, &op, right)
                     }
-                    Term::Int(i) => Ok(Value::Int(i)),
-                    Term::Bool(b) => Ok(Value::Bool(b)),
+                    Term::Int(i) => Ok(Value::Int(*i)),
+                    Term::Bool(b) => Ok(Value::Bool(*b)),
                     Term::Unit => Ok(Value::Unit),
                     _ => eval_parallel(env, cloned_body)
                 }
