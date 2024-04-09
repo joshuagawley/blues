@@ -61,7 +61,7 @@ not_op = { "!" }
 app_term     =  { proj_term+ }
 proj_term    =  { primary_term ~ proj_field* }
 proj_field   = _{ "." ~ (ident | nat) }
-primary_term = _{ list_term | tuple_term | variant_term | ident | nat }
+primary_term = _{ list_term | tuple_term | variant_term | bool | ident | nat }
 list_term    =  { "[" ~ terms? ~ "]" }
 terms        = _{ term ~ ("," ~ term)* }
 tuple_term   =  { "(" ~ terms? ~ ")" }
@@ -76,9 +76,9 @@ patterns   = _{ pattern ~ ("," ~ pattern)* }
 wild_pat   =  { "_" }
 
 ident   = @{ keyword? ~ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_" | "'")* }
-keyword =  { "_" | "as" | "box" | "else" | "fix" | "if" | "in" | "let" | "match" | "mfix" | "then" }
-
-nat = @{ ASCII_DIGIT+ }
+keyword =  { "_" | "as" | "box" | "else" | "false" | "fix" | "if" | "in" | "let" | "match" | "mfix" | "then" | "true" }
+nat     = @{ ASCII_DIGIT+ }
+bool    =  { "true" | "false" }
 
 COMMENT    = _{ "--" ~ (!NEWLINE ~ ANY)* }
 WHITESPACE = _{ WHITE_SPACE }

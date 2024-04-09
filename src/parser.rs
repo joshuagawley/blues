@@ -236,8 +236,14 @@ impl Parser {
                 let value = Arc::new(self.parse_term(inner_rules.next().unwrap()));
                 Term::Variant(label, value)
             }
+            Rule::bool => match pair.as_str() {
+                "true" => Term::Bool(true),
+                "false" => Term::Bool(false),
+                _ => unreachable!()
+            }
             Rule::ident => Term::Variable(pair.as_str().into()),
             Rule::nat => Term::Int(pair.as_str().parse().unwrap()),
+            
             _ => unreachable!(),
         }
     }

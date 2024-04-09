@@ -1,4 +1,4 @@
-let parfib = mfix fib: []Int -> Int => n: []Int =>
+let parfib = mfix fib: []Int -> Int => n: Int =>
     let box u = n in
         if u < 2 then
             u
@@ -9,4 +9,4 @@ let parfib = mfix fib: []Int -> Int => n: []Int =>
 
 
 let main = _: () =>
-    let x = parfib (box true) in x
+    let x = parfib (box 20) in x

@@ -17,7 +17,7 @@ use crate::error::{Errors, MaybeType};
 #[derive(Clone, Default, Debug)]
 pub struct Context {
     types: HashMap<String, Type>,
-    bindings: HashMap<String, Type>,
+    pub(crate) bindings: HashMap<String, Type>,
     // local_values: HashMap<String, Type>,
     // modal_values: HashMap<String, Type>, // _context_type: PhantomData,
 }
@@ -413,7 +413,7 @@ impl Context {
         }
     }
 
-    fn check_local_deps(&self, term: &Term) -> bool {
+    fn has_local_deps(&self, term: &Term) -> bool {
         match term {
             Term::Variable(name) => {
                 let r#type = self.get(name).unwrap();
@@ -424,37 +424,36 @@ impl Context {
                 param,
                 param_type,
                 body,
-            }) => matches!(param_type, Type::Modal(..)) && self.check_local_deps(body),
+            }) => matches!(param_type, Type::Modal(..)) && self.has_local_deps(body),
             Term::Application(_, arg) => {
-                self.check_local_deps(arg)
+                self.has_local_deps(arg)
             },
-            Term::Ascription(term, _) => self.check_local_deps(term),
-            Term::Bool(..) => true,
-            Term::Box(term) => self.check_local_deps(term),
-            Term::Fix(..) => false,
-            Term::MFix(term) => self.check_local_deps(term),
+            Term::Ascription(term, _) => self.has_local_deps(term),
+            Term::Bool(..) => false,
+            Term::Box(term) => self.has_local_deps(term),
+            Term::Fix(..) => true,
+            Term::MFix(term) => self.has_local_deps(term),
             Term::If(guard, if_true, if_false) => {
-                self.check_local_deps(guard)
-                    && self.check_local_deps(if_true)
-                    && self.check_local_deps(if_false)
+                    self.has_local_deps(if_true)
+                    && self.has_local_deps(if_false)
             }
-            Term::Int(..) => true,
+            Term::Int(..) => false,
             Term::Infix(left, _, right) => {
-                self.check_local_deps(left) && self.check_local_deps(right)
+                self.has_local_deps(left) && self.has_local_deps(right)
             }
-            Term::Let(..) => false,
+            Term::Let(..) => true,
             Term::LetBox(_, value, body) => {
-                self.check_local_deps(value) && self.check_local_deps(body)
+                self.has_local_deps(value) && self.has_local_deps(body)
             }
             Term::Match(value, arms) => {
-                self.check_local_deps(value)
-                    && arms.values().all(|(_, term)| self.check_local_deps(term))
+                self.has_local_deps(value)
+                    && arms.values().all(|(_, term)| self.has_local_deps(term))
             }
-            Term::Postfix(term, _) => self.check_local_deps(term),
-            Term::Prefix(_, term) => self.check_local_deps(term),
-            Term::Tuple(terms) => terms.iter().all(|term| self.check_local_deps(term)),
-            Term::Unit => true,
-            Term::Variant(_, arms) => self.check_local_deps(arms),
+            Term::Postfix(term, _) => self.has_local_deps(term),
+            Term::Prefix(_, term) => self.has_local_deps(term),
+            Term::Tuple(terms) => terms.iter().all(|term| self.has_local_deps(term)),
+            Term::Unit => false,
+            Term::Variant(_, arms) => self.has_local_deps(arms),
         }
     }
 
@@ -470,8 +469,7 @@ impl Context {
             Term::Ascription(value, as_type) => self.type_of_ascription(value, as_type),
             Term::Bool(_) => Ok(Type::Bool),
             Term::Box(term) => {
-                let no_local_deps = self.check_local_deps(term);
-                if !no_local_deps {
+                if self.has_local_deps(term) {
                     return Err(vec![TypeError::BoxedExprHasLocalDeps(term.to_string()).into()]);
                 }
                 let inner_type = self.resolve_type_of(term)?;
