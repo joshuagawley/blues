@@ -1,0 +1,8 @@
+let fac = fix fac: Int -> Int => n: Int =>
+    if n < 2 then
+        1
+    else
+        n * fac(n - 1)
+
+let main = _: () =>
+    let x = fac 20 in x
