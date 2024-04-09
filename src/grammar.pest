@@ -26,7 +26,7 @@ mfix_term    =  { "mfix" ~ term }
 box_term     =  { "box" ~ term  }
 if_term      =  { "if" ~ term ~ "then" ~ term ~ "else" ~ term }
 let_term     =  { "let" ~ pattern ~ "=" ~ term ~ "in" ~ term }
-let_box_term =  { "let" ~ "box" ~ pattern ~ "<=" ~ term ~ "in" ~ term }
+let_box_term =  { "let" ~ "box" ~ pattern ~ "=" ~ term ~ "in" ~ term }
 match_term   =  { "match" ~ term ~ "with" ~ match_arms }
 match_arms   = _{ match_arm ~ ("," ~ match_arm)* }
 match_arm    =  { "<" ~ ident ~ "=" ~ pattern ~ ">" ~ "=>" ~ term }
