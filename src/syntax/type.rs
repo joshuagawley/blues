@@ -1,5 +1,5 @@
 use core::fmt::Display;
-use std::collections::HashMap;
+use indexmap::IndexMap;
 use crate::error::Errors;
 use crate::error::type_error::TypeError;
 
@@ -10,7 +10,8 @@ pub enum Type {
     Int,
     Tuple(Vec<Type>),
     Variable(String),
-    Variant(HashMap<String, Type>),
+    // IndexMap preserves the order in which (k,v) pairs are inserted
+    Variant(IndexMap<String, Type>),
     Unit,
     Modal(Box<Type>),
 }

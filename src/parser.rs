@@ -9,8 +9,8 @@ use pest::pratt_parser::Op;
 use pest::Parser as _;
 use pest::{iterators::Pair, pratt_parser::PrattParser};
 use pest_derive::Parser;
-use std::collections::HashMap;
 use std::sync::Arc;
+use indexmap::IndexMap;
 
 use crate::syntax::{
     program::{Declaration, Program},
@@ -76,7 +76,7 @@ impl Parser {
                 }
                 Rule::variant_type => {
                     let inner_rules = pair.into_inner();
-                    let variants: HashMap<String, Type> = inner_rules
+                    let variants: IndexMap<String, Type> = inner_rules
                         .map(|pair| {
                             let mut inner_rules = pair.into_inner();
                             let label = inner_rules.next().unwrap().as_str().to_string();

@@ -321,7 +321,7 @@ impl Context {
         let value_type = self.resolve_type_of(value)?;
         let Type::Variant(variants) = &value_type else {
             return Err(vec![TypeError::Mismatch {
-                expected: Type::Variant(HashMap::from([(
+                expected: Type::Variant(IndexMap::from([(
                     "...".to_owned(),
                     Type::Variable("*".to_owned()),
                 )])),
@@ -502,7 +502,7 @@ impl Context {
                 .ok_or_else(|| vec![TypeError::UndefinedVariable(name.clone()).into()]),
             Term::Variant(label, value) => {
                 let value_type = self.resolve_type_of(value)?;
-                Ok(Type::Variant(HashMap::from([(label.clone(), value_type)])))
+                Ok(Type::Variant(IndexMap::from([(label.clone(), value_type)])))
             }
         }
     }
@@ -575,7 +575,7 @@ impl Context {
                 .cloned()
                 .ok_or(vec![anyhow!(TypeError::UnknownType(name))]),
             Type::Variant(variants) => {
-                let mut variant_types = HashMap::new();
+                let mut variant_types = IndexMap::new();
                 let mut errors = Vec::new();
                 for (label, variant_type) in variants {
                     match self.resolve(variant_type) {
