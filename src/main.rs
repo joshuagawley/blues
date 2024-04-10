@@ -1,31 +1,30 @@
-use clap::Parser as ClapParser;
-use cli::Cli;
+use crate::parser::Span;
+use ariadne::Source;
 use eval::{context::Context, environment::Environment, prelude::Prelude, value::Value};
 use parser::Parser;
-use std::{fs, path::Path};
 use std::sync::Arc;
+use std::fs;
+use anyhow::anyhow;
 use syntax::{
     program::{Declaration, Program},
     r#type::Type,
     term::Term,
 };
 
-mod cli;
 mod error;
 mod eval;
 mod parser;
 mod syntax;
 
-fn real_main(source_path: &Path) -> anyhow::Result<()> {
-    // let input = fs::read_to_string("/Users/jg/dev/Projects/new_moody/fac.mdy")?;
-    let input = fs::read_to_string(source_path)?;
-    let Program(decls) = Parser::new(
-        source_path
-            .to_str()
-            .map_or_else(|| "".to_owned(), |str| str.to_owned()),
-    )
-    .parse_source(&input)?;
+fn main() -> anyhow::Result<()> {
+    let Some(path) = std::env::args().nth(1) else {
+        return Err(anyhow!("Usage: stlc <file>"));
+    };
     
+    let source = fs::read_to_string(&path)?;
+    let parser = Parser::new(path.clone());
+    let Program(decls) = parser.parse_source(&source)?;
+
     let mut context = Context::default();
     let mut env = Environment::default();
 
@@ -38,7 +37,9 @@ fn real_main(source_path: &Path) -> anyhow::Result<()> {
                 let Ok(raw_type) = raw_type else {
                     let reports = raw_type.unwrap_err();
                     for report in reports {
-                        eprintln!("{report}")
+                        report
+                            .build_report()
+                            .eprint((path.clone(), Source::from(&source)))?;
                     }
                     std::process::exit(1)
                 };
@@ -48,7 +49,10 @@ fn real_main(source_path: &Path) -> anyhow::Result<()> {
                 let Ok(r#type) = r#type else {
                     let reports = r#type.unwrap_err();
                     for report in reports {
-                        eprintln!("{report}")
+                        report.build_report().eprint((
+                            path.clone(),
+                            Source::from(&source),
+                        ))?;
                     }
                     std::process::exit(1)
                 };
@@ -64,12 +68,14 @@ fn real_main(source_path: &Path) -> anyhow::Result<()> {
     let main = env.get("main")?;
 
     match (main, main_type) {
-        (Value::Abstraction(abs, env), Type::Abstraction(param_type, _))
+        (Value::Abstraction(abs, env), Type::Abstraction(_, param_type, _))
             if param_type.is_tuple() =>
         {
+            let span = Span::default();
             let value = env.clone().eval(&Term::Application(
-                Arc::new(Term::Abstraction(abs.clone())),
-                Arc::new(Term::Tuple(Vec::new())),
+                Arc::new(Term::Abstraction(abs.clone(), span.clone())),
+                Arc::new(Term::Tuple(vec![], span.clone())),
+                span.clone(),
             ))?;
             println!("{value}")
         }
@@ -77,10 +83,4 @@ fn real_main(source_path: &Path) -> anyhow::Result<()> {
     }
 
     Ok(())
-}
-
-fn main() -> anyhow::Result<()> {
-    let cli = Cli::parse();
-
-    real_main(&cli.source_path)
 }

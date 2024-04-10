@@ -7,11 +7,11 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 anyhow = "1.0.81"
+ariadne = "0.4.0"
 clap = { version = "4.5.4", features = ["derive"] }
 indexmap = "2.2.6"
 pest = "2.7.9"
 pest_derive = "2.7.9"
-thiserror = "1.0.58"
 
 [profile.release]
 lto = "thin"

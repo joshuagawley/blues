@@ -1,3 +1,4 @@
+use crate::parser::Span;
 use core::fmt::Display;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -6,62 +7,88 @@ use super::{abstraction::Abstraction, pattern::Pattern, r#type::Type};
 
 #[derive(Clone, Debug)]
 pub enum Term {
-    Abstraction(Abstraction),
-    Application(Arc<Term>, Arc<Term>),
-    Ascription(Arc<Term>, Type),
-    Bool(bool),
-    Box(Arc<Term>),
-    Fix(Arc<Term>),
-    MFix(Arc<Term>),
-    If(Arc<Term>, Arc<Term>, Arc<Term>),
-    Int(i64),
-    Infix(Arc<Term>, Infix, Arc<Term>),
-    Let(Pattern, Arc<Term>, Arc<Term>),
-    LetBox(Pattern, Arc<Term>, Arc<Term>),
-    Match(Arc<Term>, HashMap<String, (Pattern, Term)>),
-    Postfix(Arc<Term>, Postfix),
-    Prefix(Prefix, Arc<Term>),
-    Tuple(Vec<Term>),
-    Unit,
-    Variable(String),
-    Variant(String, Arc<Term>),
+    Abstraction(Abstraction, Span),
+    Application(Arc<Term>, Arc<Term>, Span),
+    Ascription(Arc<Term>, Type, Span),
+    Bool(bool, Span),
+    Box(Arc<Term>, Span),
+    Fix(Arc<Term>, Span),
+    MFix(Arc<Term>, Span),
+    If(Arc<Term>, Arc<Term>, Arc<Term>, Span),
+    Int(i64, Span),
+    Infix(Arc<Term>, Infix, Arc<Term>, Span),
+    Let(Pattern, Arc<Term>, Arc<Term>, Span),
+    LetBox(Pattern, Arc<Term>, Arc<Term>, Span),
+    Match(Arc<Term>, HashMap<String, (Pattern, Term)>, Span),
+    Postfix(Arc<Term>, Postfix, Span),
+    Prefix(Prefix, Arc<Term>, Span),
+    Tuple(Vec<Term>, Span),
+    Unit(Span),
+    Variable(String, Span),
+    Variant(String, Arc<Term>, Span),
+}
+
+impl Term {
+    pub fn span(&self) -> &Span {
+        match self {
+            Term::Abstraction(_, span) => span,
+            Term::Application(_, _, span) => span,
+            Term::Ascription(_, _, span) => span,
+            Term::Bool(_, span) => span,
+            Term::Box(_, span) => span,
+            Term::Fix(_, span) => span,
+            Term::MFix(_, span) => span,
+            Term::If(_, _, _, span) => span,
+            Term::Int(_, span) => span,
+            Term::Infix(_, _, _, span) => span,
+            Term::Let(_, _, _, span) => span,
+            Term::LetBox(_, _, _, span) => span,
+            Term::Match(_, _, span) => span,
+            Term::Postfix(_, _, span) => span,
+            Term::Prefix(_, _, span) => span,
+            Term::Tuple(_, span) => span,
+            Term::Unit(span) => span,
+            Term::Variable(_, span) => span,
+            Term::Variant(_, _, span) => span,
+        }
+    }
 }
 
 impl Display for Term {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Term::Abstraction(abstraction) => write!(f, "{abstraction}"),
-            Term::Application(abstraction, argument) => write!(f, "{abstraction} {argument}"),
-            Term::Ascription(value, as_type) => write!(f, "{value} as {as_type}"),
-            Term::Box(value) => write!(f, "box {value}"),
-            Term::Bool(b) => write!(f, "{b}"),
-            Term::Fix(value) => write!(f, "fix {value}"),
-            Term::MFix(value) => write!(f, "mfix {value}"),
-            Term::If(guard, if_true, if_false) => {
+            Term::Abstraction(abstraction, _) => write!(f, "{abstraction}"),
+            Term::Application(abstraction, argument, _) => write!(f, "{abstraction} {argument}"),
+            Term::Ascription(value, as_type, _) => write!(f, "{value} as {as_type}"),
+            Term::Box(value, _) => write!(f, "box {value}"),
+            Term::Bool(b, _) => write!(f, "{b}"),
+            Term::Fix(value, _) => write!(f, "fix {value}"),
+            Term::MFix(value, _) => write!(f, "mfix {value}"),
+            Term::If(guard, if_true, if_false, _) => {
                 write!(f, "if {guard} then {if_true} else {if_false}")
             }
-            Term::Int(n) => write!(f, "{n}"),
-            Term::Infix(lhs, op, rhs) => write!(f, "{lhs} {op} {rhs}"),
-            Term::Let(pattern, value, body) => write!(f, "let {pattern} = {value} in {body}"),
-            Term::LetBox(pattern, value, body) => {
+            Term::Int(n, _) => write!(f, "{n}"),
+            Term::Infix(lhs, op, rhs, _) => write!(f, "{lhs} {op} {rhs}"),
+            Term::Let(pattern, value, body, _) => write!(f, "let {pattern} = {value} in {body}"),
+            Term::LetBox(pattern, value, body, _) => {
                 write!(f, "let box {pattern} = {value} in {body}")
             }
-            Term::Match(value, arms) => {
+            Term::Match(value, arms, _) => {
                 let arms = arms
                     .iter()
                     .map(|(tag, (pattern, body))| format!("<{tag}={pattern}> => {body}"))
                     .collect::<Vec<_>>();
                 write!(f, "match {value} with {}", arms.join(", "))
             }
-            Term::Postfix(left, op) => write!(f, "{left}{op}"),
-            Term::Prefix(op, right) => write!(f, "{op}{right}"),
-            Term::Tuple(values) => {
+            Term::Postfix(left, op, _) => write!(f, "{left}{op}"),
+            Term::Prefix(op, right, _) => write!(f, "{op}{right}"),
+            Term::Tuple(values, _) => {
                 let values = values.iter().map(Term::to_string).collect::<Vec<_>>();
                 write!(f, "[{}]", values.join(", "))
             }
-            Term::Unit => write!(f, "Unit"),
-            Term::Variable(name) => write!(f, "{name}"),
-            Term::Variant(field, value) => write!(f, "<{field} = {value}>"),
+            Term::Unit(_) => write!(f, "Unit"),
+            Term::Variable(name, _) => write!(f, "{name}"),
+            Term::Variant(field, value, _) => write!(f, "<{field} = {value}>"),
         }
     }
 }

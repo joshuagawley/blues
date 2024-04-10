@@ -10,9 +10,10 @@ use crate::{
     },
 };
 
-use anyhow::anyhow;
-use indexmap::IndexMap;
 use crate::error::{Errors, MaybeType};
+use crate::parser::Span;
+use ariadne::Span as AriadneSpan;
+use indexmap::IndexMap;
 
 #[derive(Clone, Default, Debug)]
 pub struct Context {
@@ -57,26 +58,32 @@ impl Context {
         self.types.insert(name, r#type);
     }
 
-    fn type_of_infix(&mut self, left: &Term, op: &Infix, right: &Term) -> MaybeType {
+    fn type_of_infix(&mut self, left: &Term, op: &Infix, right: &Term, span: &Span) -> MaybeType {
         let left_type = self.resolve_type_of(left)?;
         let right_type = self.resolve_type_of(right)?;
 
         match op {
             Infix::Or | Infix::And => {
                 let mut errors = Vec::new();
+
                 if !left_type.is_bool() {
                     errors.push(
                         TypeError::Mismatch {
-                            expected: Type::Bool,
+                            offset: span.start(),
+                            span: left.span().clone(),
+                            expected: Type::Bool(Span::default()),
                             actual: left_type,
                         }
                         .into(),
                     );
                 }
+
                 if !right_type.is_bool() {
                     errors.push(
                         TypeError::Mismatch {
-                            expected: Type::Bool,
+                            offset: span.start(),
+                            span: right.span().clone(),
+                            expected: Type::Bool(Span::default()),
                             actual: right_type,
                         }
                         .into(),
@@ -84,7 +91,7 @@ impl Context {
                 }
 
                 if errors.is_empty() {
-                    Ok(Type::Bool)
+                    Ok(Type::Bool(span.clone()))
                 } else {
                     Err(errors)
                 }
@@ -92,9 +99,11 @@ impl Context {
 
             Infix::Eq | Infix::NtEq => {
                 if left_type == right_type {
-                    Ok(Type::Bool)
+                    Ok(Type::Bool(span.clone()))
                 } else {
                     Err(vec![TypeError::Mismatch {
+                        offset: span.start(),
+                        span: right.span().clone(),
                         expected: left_type,
                         actual: right_type,
                     }
@@ -107,7 +116,9 @@ impl Context {
                 if !left_type.is_int() {
                     errors.push(
                         TypeError::Mismatch {
-                            expected: Type::Int,
+                            offset: span.start(),
+                            span: left.span().clone(),
+                            expected: Type::Int(Span::default()),
                             actual: left_type,
                         }
                         .into(),
@@ -116,7 +127,9 @@ impl Context {
                 if !right_type.is_int() {
                     errors.push(
                         TypeError::Mismatch {
-                            expected: Type::Int,
+                            offset: span.start(),
+                            span: right.span().clone(),
+                            expected: Type::Int(Span::default()),
                             actual: right_type,
                         }
                         .into(),
@@ -124,7 +137,7 @@ impl Context {
                 }
 
                 if errors.is_empty() {
-                    Ok(Type::Bool)
+                    Ok(Type::Bool(Span::default()))
                 } else {
                     Err(errors)
                 }
@@ -135,7 +148,9 @@ impl Context {
                 if !left_type.is_int() {
                     errors.push(
                         TypeError::Mismatch {
-                            expected: Type::Int,
+                            offset: span.start(),
+                            span: left.span().clone(),
+                            expected: Type::Int(Span::default()),
                             actual: left_type,
                         }
                         .into(),
@@ -144,7 +159,9 @@ impl Context {
                 if !right_type.is_int() {
                     errors.push(
                         TypeError::Mismatch {
-                            expected: Type::Int,
+                            offset: span.start(),
+                            span: right.span().clone(),
+                            expected: Type::Int(Span::default()),
                             actual: right_type,
                         }
                         .into(),
@@ -152,7 +169,7 @@ impl Context {
                 }
 
                 if errors.is_empty() {
-                    Ok(Type::Int)
+                    Ok(Type::Int(Span::default()))
                 } else {
                     Err(errors)
                 }
@@ -166,30 +183,34 @@ impl Context {
         param: &Pattern,
         param_type: &Type,
         body: &Term,
+        span: &Span,
     ) -> MaybeType {
         let mut context = self.clone();
         let param_type = self.resolve(param_type.clone())?;
         context.bind_pattern(param, term, &param_type)?;
         let body_type = context.resolve_type_of(body)?;
-        Ok(Type::Abstraction(Box::new(param_type), Box::new(body_type)))
+        Ok(Type::Abstraction(
+            span.clone(),
+            Box::new(param_type),
+            Box::new(body_type),
+        ))
     }
 
-    fn type_of_application(&mut self, abs: &Term, arg: &Term) -> MaybeType {
+    fn type_of_application(&mut self, abs: &Term, arg: &Term, span: &Span) -> MaybeType {
         let abs_type = self.resolve_type_of(abs)?;
         let arg_type = self.resolve_type_of(arg)?;
 
         match abs_type {
-            Type::Abstraction(param_type, return_type) => {
+            Type::Abstraction(_, param_type, return_type) => {
                 let param_type = self.resolve(*param_type)?;
                 let return_type = self.resolve(*return_type)?;
-                
-                if param_type == Type::Modal(Box::new(return_type.clone())) {
-                    Ok(return_type)
-                }
-                else if param_type == return_type {
+
+                if param_type.get_inner_type() == &return_type {
                     Ok(return_type)
                 } else {
                     Err(vec![TypeError::Mismatch {
+                        offset: span.start(),
+                        span: arg_type.span().clone(),
                         expected: arg_type,
                         actual: param_type,
                     }
@@ -197,9 +218,12 @@ impl Context {
                 }
             }
             _ => Err(vec![TypeError::Mismatch {
+                offset: span.start(),
+                span: abs_type.span().clone(),
                 expected: Type::Abstraction(
-                    Box::new(Type::Variable("*".to_owned())),
-                    Box::new(Type::Variable("*".to_owned())),
+                    Span::default(),
+                    Box::new(Type::Variable(Span::default(), "*".to_owned())),
+                    Box::new(Type::Variable(Span::default(), "*".to_owned())),
                 ),
                 actual: abs_type,
             }
@@ -207,7 +231,7 @@ impl Context {
         }
     }
 
-    fn type_of_ascription(&mut self, value: &Term, as_type: &Type) -> MaybeType {
+    fn type_of_ascription(&mut self, value: &Term, as_type: &Type, span: &Span) -> MaybeType {
         let as_type = self.resolve(as_type.clone())?;
         let value_type = self.resolve_type_of(value)?;
 
@@ -216,7 +240,7 @@ impl Context {
         }
 
         match (&value_type, &as_type) {
-            (Type::Variant(term_variants), Type::Variant(variants))
+            (Type::Variant(_, term_variants), Type::Variant(_, variants))
                 if term_variants
                     .iter()
                     .all(|(label, r#type)| variants.get(label) == Some(r#type)) =>
@@ -225,6 +249,8 @@ impl Context {
             }
             (_, _) if value_type == as_type => Ok(value_type),
             _ => Err(vec![TypeError::Mismatch {
+                offset: span.start(),
+                span: as_type.span().clone(),
                 expected: value_type,
                 actual: as_type,
             }
@@ -232,7 +258,7 @@ impl Context {
         }
     }
 
-    fn type_of_fix(&mut self, abs: &Term) -> MaybeType {
+    fn type_of_fix(&mut self, abs: &Term, span: &Span) -> MaybeType {
         let (param_type, return_type) = self.resolve_type_of(abs)?.unroll_abs()?;
         let param_type = self.resolve(*param_type)?;
         let return_type = self.resolve(*return_type)?;
@@ -241,6 +267,8 @@ impl Context {
             Ok(return_type)
         } else {
             Err(vec![TypeError::Mismatch {
+                offset: span.start(),
+                span: return_type.span().clone(),
                 expected: param_type,
                 actual: return_type,
             }
@@ -248,7 +276,7 @@ impl Context {
         }
     }
 
-    fn type_of_mfix(&mut self, abs: &Term) -> MaybeType {
+    fn type_of_mfix(&mut self, abs: &Term, span: &Span) -> MaybeType {
         // eprintln!("Getting type of mobile fixpoint");
         // eprintln!("Getting function type");
         // eprintln!("abs: {abs}");
@@ -259,28 +287,32 @@ impl Context {
         // eprintln!("Resolving parameter type");
         let param_type = self.resolve(*param_type)?;
         let return_type = self.resolve(*return_type)?;
-        
+
         let (input_param_type, input_return_type) = param_type.unroll_abs()?;
-        
+
         let (output_param_type, output_return_type) = return_type.unroll_abs()?;
-        
+
         if input_return_type != output_return_type {
             return Err(vec![TypeError::Mismatch {
+                offset: span.start(),
+                span: output_return_type.span().clone(),
                 expected: *input_return_type,
                 actual: *output_return_type,
             }
-                .into()]);
+            .into()]);
         }
-        
-        if input_param_type.get_inner_type() != &*output_param_type {
+
+        if input_param_type.get_inner_type() != output_param_type {
             return Err(vec![TypeError::Mismatch {
+                offset: span.start(),
+                span: output_param_type.span().clone(),
                 expected: *input_param_type,
                 actual: *output_param_type,
             }
-                .into()]); 
+            .into()]);
         }
-        
-        Ok(Type::Abstraction(input_param_type, output_return_type))
+
+        Ok(*output_return_type)
     }
 
     fn type_of_if(
@@ -288,11 +320,14 @@ impl Context {
         guard: &Term,
         if_true: &Term,
         if_false: &Term,
+        span: &Span,
     ) -> MaybeType {
         let guard_type = self.resolve_type_of(guard)?;
         if !guard_type.is_bool() {
             return Err(vec![TypeError::Mismatch {
-                expected: Type::Bool,
+                offset: span.start(),
+                span: guard_type.span().clone(),
+                expected: Type::Bool(Span::default()),
                 actual: guard_type,
             }
             .into()]);
@@ -305,6 +340,8 @@ impl Context {
             Ok(if_true_type)
         } else {
             Err(vec![TypeError::Mismatch {
+                offset: span.start(),
+                span: if_false_type.span().clone(),
                 expected: if_true_type,
                 actual: if_false_type,
             }
@@ -317,14 +354,20 @@ impl Context {
         term: &Term,
         value: &Term,
         arms: &HashMap<String, (Pattern, Term)>,
+        span: &Span,
     ) -> MaybeType {
         let value_type = self.resolve_type_of(value)?;
-        let Type::Variant(variants) = &value_type else {
+        let Type::Variant(span, variants) = &value_type else {
             return Err(vec![TypeError::Mismatch {
-                expected: Type::Variant(IndexMap::from([(
-                    "...".to_owned(),
-                    Type::Variable("*".to_owned()),
-                )])),
+                offset: term.span().start(),
+                span: term.span().clone(),
+                expected: Type::Variant(
+                    Span::default(),
+                    IndexMap::from([(
+                        "...".to_owned(),
+                        Type::Variable(Span::default(), "*".to_owned()),
+                    )]),
+                ),
                 actual: value_type,
             }
             .into()]);
@@ -345,7 +388,8 @@ impl Context {
         let mut errors = Vec::new();
 
         if !absent.is_empty() {
-            errors.push(TypeError::MissingVariants(absent).into());
+            errors
+                .push(TypeError::MissingVariants(term.span().start(), span.clone(), absent).into());
         }
 
         if !extraneous.is_empty() {
@@ -365,7 +409,7 @@ impl Context {
             }
             match content.resolve_type_of(body) {
                 Ok(arm_type) => {
-                    arm_types.insert(label.clone(), arm_type);
+                    arm_types.insert(label.clone(), (arm_type, body.span().clone()));
                 }
                 Err(mut errs) => errors.append(&mut errs),
             }
@@ -375,11 +419,13 @@ impl Context {
             return Err(errors);
         }
 
-        let match_type = arm_types.first().unwrap().1.clone();
-        for (_, arm_type) in arm_types {
+        let (match_type, _) = arm_types.first().unwrap().1.clone();
+        for (_, (arm_type, span)) in arm_types {
             if arm_type != match_type {
                 errors.push(
                     TypeError::Mismatch {
+                        offset: term.span().start(),
+                        span,
                         expected: match_type.clone(),
                         actual: arm_type,
                     }
@@ -395,18 +441,22 @@ impl Context {
         }
     }
 
-    fn type_of_prefix(&mut self, op: &Prefix, right: &Term) -> MaybeType {
+    fn type_of_prefix(&mut self, op: &Prefix, right: &Term, span: &Span) -> MaybeType {
         let right_type = self.resolve_type_of(right)?;
         match (op, right_type.get_inner_type()) {
-            (Prefix::Neg, Type::Int) => Ok(Type::Int),
+            (Prefix::Neg, Type::Int(..)) => Ok(Type::Int(span.clone())),
             (Prefix::Neg, other_type) => Err(vec![TypeError::Mismatch {
-                expected: Type::Int,
+                offset: span.start(),
+                span: right.span().clone(),
+                expected: Type::Int(Span::default()),
                 actual: other_type.clone(),
             }
             .into()]),
-            (Prefix::Not, Type::Bool) => Ok(Type::Bool),
+            (Prefix::Not, Type::Bool(..)) => Ok(Type::Bool(span.clone())),
             (Prefix::Not, other_type) => Err(vec![TypeError::Mismatch {
-                expected: Type::Bool,
+                offset: span.start(),
+                span: right.span().clone(),
+                expected: Type::Bool(Span::default()),
                 actual: other_type.clone(),
             }
             .into()]),
@@ -415,94 +465,113 @@ impl Context {
 
     fn has_local_deps(&self, term: &Term) -> bool {
         match term {
-            Term::Variable(name) => {
+            Term::Variable(name, _) => {
                 let r#type = self.get(name).unwrap();
-                matches!(r#type, Type::Int | Type::Bool | Type::Modal(..))
+                matches!(r#type, Type::Int(..) | Type::Bool(..) | Type::Modal(..))
             }
 
-            Term::Abstraction(Abstraction {
-                param,
-                param_type,
-                body,
-            }) => matches!(param_type, Type::Modal(..)) && self.has_local_deps(body),
-            Term::Application(_, arg) => {
-                self.has_local_deps(arg)
-            },
-            Term::Ascription(term, _) => self.has_local_deps(term),
+            Term::Abstraction(
+                Abstraction {
+                    param,
+                    param_type,
+                    body,
+                },
+                _,
+            ) => matches!(param_type, Type::Modal(..)) && self.has_local_deps(body),
+            Term::Application(_, arg, _) => self.has_local_deps(arg),
+            Term::Ascription(term, _, _) => self.has_local_deps(term),
             Term::Bool(..) => false,
-            Term::Box(term) => self.has_local_deps(term),
+            Term::Box(term, _) => self.has_local_deps(term),
             Term::Fix(..) => true,
-            Term::MFix(term) => self.has_local_deps(term),
-            Term::If(guard, if_true, if_false) => {
-                    self.has_local_deps(if_true)
-                    && self.has_local_deps(if_false)
+            Term::MFix(term, _) => self.has_local_deps(term),
+            Term::If(guard, if_true, if_false, _) => {
+                self.has_local_deps(if_true) && self.has_local_deps(if_false)
             }
             Term::Int(..) => false,
-            Term::Infix(left, _, right) => {
+            Term::Infix(left, _, right, _) => {
                 self.has_local_deps(left) && self.has_local_deps(right)
             }
             Term::Let(..) => true,
-            Term::LetBox(_, value, body) => {
+            Term::LetBox(_, value, body, _) => {
                 self.has_local_deps(value) && self.has_local_deps(body)
             }
-            Term::Match(value, arms) => {
+            Term::Match(value, arms, _) => {
                 self.has_local_deps(value)
                     && arms.values().all(|(_, term)| self.has_local_deps(term))
             }
-            Term::Postfix(term, _) => self.has_local_deps(term),
-            Term::Prefix(_, term) => self.has_local_deps(term),
-            Term::Tuple(terms) => terms.iter().all(|term| self.has_local_deps(term)),
-            Term::Unit => false,
-            Term::Variant(_, arms) => self.has_local_deps(arms),
+            Term::Postfix(term, _, _) => self.has_local_deps(term),
+            Term::Prefix(_, term, _) => self.has_local_deps(term),
+            Term::Tuple(terms, _) => terms.iter().all(|term| self.has_local_deps(term)),
+            Term::Unit(..) => false,
+            Term::Variant(_, arms, _) => self.has_local_deps(arms),
         }
     }
 
     pub fn type_of(&mut self, term: &Term) -> MaybeType {
-        // eprintln!("Checking type of {term}");
         match term {
-            Term::Abstraction(Abstraction {
-                param,
-                param_type,
-                body,
-            }) => self.type_of_abstraction(term, param, param_type, body),
-            Term::Application(abs, arg) => self.type_of_application(abs, arg),
-            Term::Ascription(value, as_type) => self.type_of_ascription(value, as_type),
-            Term::Bool(_) => Ok(Type::Bool),
-            Term::Box(term) => {
+            Term::Abstraction(
+                Abstraction {
+                    param,
+                    param_type,
+                    body,
+                },
+                span,
+            ) => self.type_of_abstraction(term, param, param_type, body, span),
+            Term::Application(abs, arg, span) => self.type_of_application(abs, arg, span),
+            Term::Ascription(value, as_type, span) => self.type_of_ascription(value, as_type, span),
+            Term::Bool(_, span) => Ok(Type::Bool(span.clone())),
+            Term::Box(term, span) => {
                 if self.has_local_deps(term) {
-                    return Err(vec![TypeError::BoxedExprHasLocalDeps(term.to_string()).into()]);
+                    return Err(vec![TypeError::BoxedExprHasLocalDeps(
+                        span.start(),
+                        span.clone(),
+                        term.to_string(),
+                    )
+                    .into()]);
                 }
                 let inner_type = self.resolve_type_of(term)?;
-                Ok(Type::Modal(Box::new(inner_type)))
+                Ok(Type::Modal(span.clone(), Box::new(inner_type)))
             }
-            Term::Fix(abs) => self.type_of_fix(abs),
-            Term::MFix(abs) => self.type_of_mfix(abs),
-            Term::If(guard, if_true, if_false) => self.type_of_if(guard, if_true, if_false),
-            Term::Int(_) => Ok(Type::Int),
-            Term::Infix(left, op, right) => self.type_of_infix(left, op, right),
-            Term::Let(pattern, value, body) | Term::LetBox(pattern, value, body)=> {
-                let value_type = self.resolve_type_of(value)?;
+            Term::Fix(abs, span) => self.type_of_fix(abs, span),
+            Term::MFix(abs, span) => self.type_of_mfix(abs, span),
+            Term::If(guard, if_true, if_false, span) => {
+                self.type_of_if(guard, if_true, if_false, span)
+            }
+            Term::Int(_, span) => Ok(Type::Int(span.clone())),
+            Term::Infix(left, op, right, span) => self.type_of_infix(left, op, right, span),
+            Term::Let(pattern, value, body, span) => {
+                let value_type= self.resolve_type_of(value)?;
                 let mut context = self.clone();
                 context.bind_pattern(pattern, term, &value_type)?;
                 context.resolve_type_of(body)
+            } 
+            
+            Term::LetBox(pattern, value, body, span) => {
+                let modal_value_type = self.resolve_type_of(value)?;
+                let value_type = modal_value_type.get_inner_type();
+                let mut context = self.clone();
+                context.bind_pattern(pattern, term, value_type)?;
+                context.resolve_type_of(body)
             }
-            Term::Match(value, arms) => self.type_of_match(term, value, arms),
+            Term::Match(value, arms, span) => self.type_of_match(term, value, arms, span),
             // Only postfix term is "as" which we've already dealt with
             Term::Postfix(..) => unimplemented!(),
-            Term::Prefix(op, right) => self.type_of_prefix(op, right),
-            Term::Tuple(values) => values
+            Term::Prefix(op, right, span) => self.type_of_prefix(op, right, span),
+            Term::Tuple(values, span) => values
                 .iter()
                 .map(|value| self.resolve_type_of(value))
                 .collect::<Result<_, _>>()
-                .map(Type::Tuple),
-            Term::Unit => Ok(Type::Unit),
-            Term::Variable(name) => self
-                .get(name)
-                .cloned()
-                .ok_or_else(|| vec![TypeError::UndefinedVariable(name.clone()).into()]),
-            Term::Variant(label, value) => {
+                .map(|value_types| Type::Tuple(span.clone(), value_types)),
+            Term::Unit(span) => Ok(Type::Unit(span.clone())),
+            Term::Variable(name, span) => self.get(name).cloned().ok_or_else(|| {
+                vec![TypeError::UndefinedVariable(span.start(), span.clone(), name.clone()).into()]
+            }),
+            Term::Variant(label, value, span) => {
                 let value_type = self.resolve_type_of(value)?;
-                Ok(Type::Variant(IndexMap::from([(label.clone(), value_type)])))
+                Ok(Type::Variant(
+                    span.clone(),
+                    IndexMap::from([(label.clone(), value_type)]),
+                ))
             }
         }
     }
@@ -515,9 +584,10 @@ impl Context {
     ) -> Result<(), Errors> {
         let r#type = self.resolve(raw_type.clone())?;
         match (pattern, r#type) {
-            (Pattern::Tuple(patterns), Type::Tuple(types)) => {
+            (Pattern::Tuple(span, patterns), Type::Tuple(_, types)) => {
                 if patterns.len() != types.len() {
                     return Err(vec![PatternError::MissingElements {
+                        span: span.clone(),
                         actual: patterns.len(),
                         expected: types.len(),
                     }
@@ -527,16 +597,16 @@ impl Context {
                     self.bind_pattern(pattern, _term, &r#type)?;
                 }
             }
-            (Pattern::Tuple(_), other_type) => {
+            (Pattern::Tuple(span, _), other_type) => {
                 return Err(vec![PatternError::Incompatible {
+                    span: span.clone(),
                     actual: pattern.clone(),
                     expected: other_type,
                 }
                 .into()]);
             }
-            (Pattern::Variable(name), value) => self.insert(name.clone(), value),
-            (Pattern::Box(_), _) => todo!(),
-            (Pattern::Wildcard, _) => {}
+            (Pattern::Variable(_, name), value) => self.insert(name.clone(), value),
+            (Pattern::Wildcard(_), _) => {}
         }
 
         Ok(())
@@ -544,15 +614,16 @@ impl Context {
 
     pub fn resolve(&self, r#type: Type) -> MaybeType {
         match r#type {
-            Type::Abstraction(param_type, return_type) => {
+            Type::Abstraction(span, param_type, return_type) => {
                 let param_type = self.resolve(*param_type)?;
                 let return_type = self.resolve(*return_type)?;
                 Ok(Type::Abstraction(
+                    span,
                     Box::new(param_type),
                     Box::new(return_type),
                 ))
             }
-            Type::Tuple(values) => {
+            Type::Tuple(span, values) => {
                 let mut value_types = Vec::new();
                 let mut errors = Vec::new();
 
@@ -564,17 +635,17 @@ impl Context {
                 }
 
                 if errors.is_empty() {
-                    Ok(Type::Tuple(value_types))
+                    Ok(Type::Tuple(span, value_types))
                 } else {
                     Err(errors)
                 }
             }
-            Type::Variable(name) => self
+            Type::Variable(span, name) => self
                 .types
                 .get(&name)
                 .cloned()
-                .ok_or(vec![anyhow!(TypeError::UnknownType(name))]),
-            Type::Variant(variants) => {
+                .ok_or(vec![TypeError::UnknownType(span.start(), span, name).into()]),
+            Type::Variant(span, variants) => {
                 let mut variant_types = IndexMap::new();
                 let mut errors = Vec::new();
                 for (label, variant_type) in variants {
@@ -586,19 +657,21 @@ impl Context {
                 }
 
                 if errors.is_empty() {
-                    Ok(Type::Variant(variant_types))
+                    Ok(Type::Variant(span, variant_types))
                 } else {
                     Err(errors)
                 }
             }
-            Type::Modal(inner_type) => Ok(Type::Modal(Box::new(self.resolve(*inner_type)?))),
+            Type::Modal(span, inner_type) => {
+                Ok(Type::Modal(span, Box::new(self.resolve(*inner_type)?)))
+            }
             _ => Ok(r#type),
         }
     }
 
     pub fn resolve_type_of(&mut self, term: &Term) -> MaybeType {
         let r#type = self.type_of(term)?;
-        // eprintln!("Type: {}", r#type);
+        eprintln!("Type of {term}: {}", r#type);
         self.resolve(r#type)
     }
 }

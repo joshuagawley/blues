@@ -1,7 +1,9 @@
 use std::collections::HashMap;
+use std::error::Error;
 use std::sync::Arc;
 
 use anyhow::anyhow;
+use crate::parser::Span;
 
 use crate::syntax::{
     abstraction::Abstraction,
@@ -54,8 +56,8 @@ pub struct Environment {
 impl Environment {
     pub fn eval(&mut self, term: &Term) -> anyhow::Result<Value> {
         match term {
-            Term::Abstraction(abs) => Ok(Value::Abstraction(abs.clone(), self.clone())),
-            Term::Application(abs, arg) => {
+            Term::Abstraction(abs, _) => Ok(Value::Abstraction(abs.clone(), self.clone())),
+            Term::Application(abs, arg, _) => {
                 let arg = self.eval(arg)?;
                 let Value::Abstraction(
                     Abstraction {
@@ -74,23 +76,24 @@ impl Environment {
                 env.bind_pattern(&param, arg)?;
                 env.eval(&body.clone())
             }
-            Term::Ascription(term, _) => self.eval(term),
-            Term::Bool(b) => Ok(Value::Bool(*b)),
-            Term::Box(body) => self.eval(body),
+            Term::Ascription(term, _, _) => self.eval(term),
+            Term::Bool(b, _) => Ok(Value::Bool(*b)),
+            Term::Box(body, _) => self.eval(body),
             // Fix and MFix
-            Term::Fix(abs) | Term::MFix(abs) => {
+            Term::Fix(abs, span) | Term::MFix(abs, span) => {
                 let arg = Term::Abstraction(Abstraction {
-                    param: Pattern::Variable("v".to_owned()),
-                    param_type: Type::Tuple(Vec::new()),
+                    param: Pattern::Variable(span.clone(), "v".to_owned()),
+                    param_type: Type::Tuple(span.clone(), vec![]),
                     body: Arc::new(Term::Application(
                         Arc::new(term.clone()),
-                        Arc::new(Term::Variable("v".into())),
-                    )),
-                });
-                let fixed = Term::Application(abs.clone(), Arc::new(arg));
+                        Arc::new(Term::Variable("v".into(), Span::default())),
+                        span.clone(),
+                    ))
+                }, Span::default());
+                let fixed = Term::Application(abs.clone(), Arc::new(arg), span.clone());
                 self.eval(&fixed)
             }
-            Term::If(guard, if_true, if_false) => {
+            Term::If(guard, if_true, if_false, _) => {
                 let Value::Bool(guard) = self.eval(guard)? else {
                     return Err(anyhow!("If expected boolean in condition!"));
                 };
@@ -100,19 +103,19 @@ impl Environment {
                     self.eval(if_false)
                 }
             }
-            Term::Infix(left, op, right) => {
+            Term::Infix(left, op, right, _) => {
                 let left = self.eval(left)?;
                 let right = self.eval(right)?;
                 eval_infix(left, op, right)
             }
-            Term::Int(i) => Ok(Value::Int(*i)),
-            Term::Let(pattern, value, body) => {
+            Term::Int(i, _) => Ok(Value::Int(*i)),
+            Term::Let(pattern, value, body, _) => {
                 let value = self.eval(value)?;
                 let mut env = self.clone();
                 env.bind_pattern(pattern, value)?;
                 env.eval(body)
             }
-            Term::LetBox(pattern, value, body) => {
+            Term::LetBox(pattern, value, body, _) => {
                 let value = self.eval(value)?;
                 let mut env = self.clone();
                 env.bind_pattern(pattern, value)?;
@@ -120,22 +123,22 @@ impl Environment {
                 let cloned_body = body.clone();
 
                 match cloned_body.as_ref() {
-                    Term::Prefix(op, right) => {
+                    Term::Prefix(op, right, _) => {
                         let right = eval_parallel(env, right.clone())?;
                         eval_prefix(&op, right)
                     }
-                    Term::Infix(left, op, right) => {
+                    Term::Infix(left, op, right, _) => {
                         let left = eval_parallel(env.clone() , left.clone())?;
                         let right = eval_parallel(env, right.clone())?;
                         eval_infix(left, &op, right)
                     }
-                    Term::Int(i) => Ok(Value::Int(*i)),
-                    Term::Bool(b) => Ok(Value::Bool(*b)),
-                    Term::Unit => Ok(Value::Unit),
+                    Term::Int(i, _) => Ok(Value::Int(*i)),
+                    Term::Bool(b, _) => Ok(Value::Bool(*b)),
+                    Term::Unit(_) => Ok(Value::Unit),
                     _ => eval_parallel(env, cloned_body)
                 }
             }
-            Term::Match(value, arms) => {
+            Term::Match(value, arms, _) => {
                 let Value::Variant { label, value } = self.eval(value)? else {
                     return Err(anyhow!("Match expected variant"));
                 };
@@ -147,24 +150,24 @@ impl Environment {
                 env.bind_pattern(pattern, *value)?;
                 env.eval(body)
             }
-            Term::Postfix(_, _) => unimplemented!(),
-            Term::Prefix(op, right) => {
+            Term::Postfix(_, _, _) => unimplemented!(),
+            Term::Prefix(op, right, _) => {
                 let right = self.eval(right)?;
                 eval_prefix(op, right)
             }
-            Term::Tuple(values) => self.eval_vec_terms(values, Value::Tuple),
-            Term::Variable(name) => self.get(name).cloned(),
-            Term::Variant(label, value) => {
+            Term::Tuple(values, _) => self.eval_vec_terms(values, Value::Tuple),
+            Term::Variable(name, _) => self.get(name).cloned(),
+            Term::Variant(label, value, _) => {
                 let value = self.eval(value)?;
                 Ok(Value::to_variant(label, value))
             }
-            Term::Unit => Ok(Value::Unit),
+            Term::Unit(_) => Ok(Value::Unit),
         }
     }
 
     pub fn bind_pattern(&mut self, pattern: &Pattern, value: Value) -> anyhow::Result<()> {
         match (pattern, value) {
-            (Pattern::Tuple(patterns), Value::Tuple(values)) => {
+            (Pattern::Tuple(_, patterns), Value::Tuple(values)) => {
                 if patterns.len() != patterns.len() {
                     return Err(anyhow!("Tuple pattern insufficient."));
                 }
@@ -173,13 +176,13 @@ impl Environment {
                     self.bind_pattern(pattern, value)?;
                 }
             }
-            (Pattern::Tuple(_), _) => {
-                return Err(anyhow!("Tuple pattern incompatible with value.".to_owned()))
+            (Pattern::Tuple(_, _), _) => {
+                return Err(anyhow!("Tuple pattern incompatible with value."));
             }
-            (Pattern::Variable(name), value) => {
+            (Pattern::Variable(_, name), value) => {
                 self.insert(name.clone(), value);
             }
-            (Pattern::Wildcard, _) => {}
+            (Pattern::Wildcard(_), _) => {}
             _ => {}
         }
         Ok(())
