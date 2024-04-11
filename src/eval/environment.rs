@@ -183,7 +183,6 @@ impl Environment {
                 self.insert(name.clone(), value);
             }
             (Pattern::Wildcard(_), _) => {}
-            _ => {}
         }
         Ok(())
     }
