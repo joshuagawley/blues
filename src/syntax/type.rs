@@ -19,6 +19,14 @@ pub enum Type {
 }
 
 impl Type {
+    
+    pub fn make_error_abs() -> Self {
+        Self::Abstraction(
+            Span::default(),
+            Box::new(Type::Variable(Span::default(), "*".to_owned())),
+            Box::new(Type::Variable(Span::default(), "*".to_owned())),
+        )
+    }
     pub fn span(&self) -> &Span {
         match self {
             Self::Abstraction(span, _, _) => span,
@@ -51,15 +59,11 @@ impl Type {
     }
 
     pub fn unroll_abs(self) -> Result<(Box<Type>, Box<Type>), Errors> {
-        let Self::Abstraction(span, param_type, return_type) = self else {
+        let Self::Abstraction(_, param_type, return_type) = self else {
             return Err(vec![TypeError::Mismatch {
                 offset: self.span().start(),
                 span: self.span().clone(),
-                expected: Type::Abstraction(
-                    Span::default(),
-                    Box::new(Type::Variable(Span::default(), "*".to_owned())),
-                    Box::new(Type::Variable(Span::default(), "*".to_owned())),
-                ),
+                expected: Self::make_error_abs(),
                 actual: self,
             }
             .into()]);
@@ -71,7 +75,7 @@ impl Type {
 impl PartialEq for Type {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Abstraction(_, l1, l2), Self::Abstraction(_, r1, r2)) => l1 == l2 && r1 == r2,
+            (Self::Abstraction(_, l1, l2), Self::Abstraction(_, r1, r2)) => l1 == r1 && l2 == r2,
             (Self::Bool(_), Self::Bool(_)) => true,
             (Self::Int(_), Self::Int(_)) => true,
             (Self::Unit(_), Self::Unit(_)) => true,

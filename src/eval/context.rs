@@ -90,7 +90,7 @@ impl Context {
                 let value_type = modal_value_type.get_inner_type();
                 let mut context = self.clone();
                 context.bind_pattern(pattern, term, value_type)?;
-                Ok(context.resolve_type_of(body)?.get_inner_type().clone())
+                Ok(context.resolve_type_of(body)?.clone())
             }
             Term::Match(value, arms, span) => self.type_of_match(term, value, arms, span),
             // Only postfix term is "as" which we've already dealt with
@@ -269,11 +269,7 @@ impl Context {
             _ => Err(vec![TypeError::Mismatch {
                 offset: span.start(),
                 span: abs_type.span().clone(),
-                expected: Type::Abstraction(
-                    Span::default(),
-                    Box::new(Type::Variable(Span::default(), "*".to_owned())),
-                    Box::new(Type::Variable(Span::default(), "*".to_owned())),
-                ),
+                expected: Type::make_error_abs(),
                 actual: abs_type,
             }
             .into()]),
@@ -427,9 +423,13 @@ impl Context {
     }
 
     fn type_of_fix(&mut self, abs: &Term, span: &Span) -> MaybeType {
-        let (param_type, return_type) = self.resolve_type_of(abs)?.unroll_abs()?;
+        let abs_type = self.resolve_type_of(abs)?;
+        eprintln!("abs_type: {abs_type:#?}");
+        let  (param_type, return_type) = abs_type.unroll_abs()?;
         let param_type = self.resolve(*param_type)?;
         let return_type = self.resolve(*return_type)?;
+
+        eprintln!("input: {param_type} -> {return_type}");
 
         if param_type == return_type {
             Ok(return_type)
@@ -451,40 +451,61 @@ impl Context {
         let abs_type = self.resolve_type_of(abs)?;
         eprintln!("abs_type: {abs_type:#?}");
         let (param_type, return_type) = abs_type.unroll_abs()?;
-        eprintln!("param_type: {param_type}");
-        eprintln!("return_type: {return_type}");
-
-        // eprintln!("Resolving parameter type");
         let param_type = self.resolve(*param_type)?;
         let return_type = self.resolve(*return_type)?;
-
-        let (input_param_type, input_return_type) = param_type.unroll_abs()?;
-
-        let (output_param_type, output_return_type) = return_type.unroll_abs()?;
-
-        eprintln!("input: {input_param_type} -> {input_return_type}");
-        eprintln!("output: {output_param_type} -> {output_param_type}");
-        if input_param_type != output_param_type {
-            return Err(vec![TypeError::Mismatch {
-                offset: span.start(),
-                span: output_param_type.span().clone(),
-                expected: *input_return_type,
-                actual: *output_param_type,
-            }
-            .into()]);
+        eprintln!("param_type: {param_type}");
+        eprintln!("return_type: {return_type}");
+        
+        if !matches!(*param_type.clone().unroll_abs()?.0, Type::Modal(..)) {
+            return Err(vec![TypeError::ExpectedModal(span.start(), span.clone(), param_type.clone()).into()]);
         }
 
-        if *input_return_type != *output_return_type {
-            return Err(vec![TypeError::Mismatch {
+        if param_type == return_type {
+            Ok(return_type)
+        } else {
+            Err(vec![TypeError::Mismatch {
                 offset: span.start(),
-                span: output_param_type.span().clone(),
-                expected: *input_param_type,
-                actual: *output_param_type,
+                span: return_type.span().clone(),
+                expected: param_type,
+                actual: return_type,
             }
-            .into()]);
+                .into()])
         }
 
-        Ok(*output_return_type)
+        // // eprintln!("Resolving parameter type");
+        // let param_type = self.resolve(*param_type)?;
+        // eprintln!("param_type: {param_type}");
+        // eprintln!("Resolving return type");
+        // let return_type = self.resolve(*return_type)?;
+        // eprintln!("return_type: {return_type}");
+
+        // let (input_param_type, input_return_type) = param_type.unroll_abs()?;
+        // 
+        // let (output_param_type, output_return_type) = return_type.unroll_abs()?;
+        // 
+        // eprintln!("input: {input_param_type} -> {input_return_type}");
+        // eprintln!("output: {output_param_type} -> {output_param_type}");
+        // if input_param_type != output_param_type {
+        //     return Err(vec![TypeError::Mismatch {
+        //         offset: span.start(),
+        //         span: output_param_type.span().clone(),
+        //         expected: *input_return_type,
+        //         actual: *output_param_type,
+        //     }
+        //     .into()]);
+        // }
+        // 
+        // if *input_return_type != *output_return_type {
+        //     return Err(vec![TypeError::Mismatch {
+        //         offset: span.start(),
+        //         span: output_param_type.span().clone(),
+        //         expected: *input_param_type,
+        //         actual: *output_param_type,
+        //     }
+        //     .into()]);
+        // }
+        // 
+        // Ok(*output_return_type)
     }
 
     fn type_of_if(

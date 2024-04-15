@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::error::Error;
 use std::sync::Arc;
 
 use anyhow::anyhow;
@@ -72,6 +71,7 @@ impl Environment {
                         "Application expected abstraction in first position."
                     ));
                 };
+                
                 let mut env = env.clone();
                 env.bind_pattern(&param, arg)?;
                 env.eval(&body.clone())
@@ -111,9 +111,7 @@ impl Environment {
             Term::Int(i, _) => Ok(Value::Int(*i)),
             Term::Let(pattern, value, body, _) => {
                 let value = self.eval(value)?;
-                let mut env = self.clone();
-                env.bind_pattern(pattern, value)?;
-                env.eval(body)
+                self.bind_and_eval(pattern, value, body)
             }
             Term::LetBox(pattern, value, body, _) => {
                 let value = self.eval(value)?;
@@ -146,9 +144,7 @@ impl Environment {
                     return Err(anyhow!("Field {label} not in match arms"));
                 };
 
-                let mut env = self.clone();
-                env.bind_pattern(pattern, *value)?;
-                env.eval(body)
+                self.bind_and_eval(pattern, *value, body)
             }
             Term::Postfix(_, _, _) => unimplemented!(),
             Term::Prefix(op, right, _) => {
@@ -193,6 +189,12 @@ impl Environment {
 
     pub fn insert(&mut self, k: String, v: Value) {
         self.values.insert(k, v);
+    }
+    
+    fn bind_and_eval(&mut self, pattern: &Pattern, value: Value, term: &Term) -> anyhow::Result<Value> {
+        let mut env = self.clone();
+        env.bind_pattern(pattern, value)?;
+        env.eval(term)
     }
 
     fn eval_vec_terms(

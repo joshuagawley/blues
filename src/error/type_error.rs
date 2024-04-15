@@ -23,6 +23,7 @@ pub enum TypeError {
         index: usize,
         tuple_type: Type,
     },
+    ExpectedModal(usize, Span, Type),
     UnknownType(usize, Span, String),
 }
 
@@ -52,6 +53,7 @@ impl Reportable for TypeError {
                     ))
                     .with_color(Color::Red),
             ),
+            TypeError::ExpectedModal(_, span, r#type) => report.with_message(format!("Expected type `{}` to be modal", r#type)),
             TypeError::MissingVariants(_, span, variants) => report
                 .with_message("missing variants")
                 .with_labels(variants.iter().map(|(label, variant_type)| {
@@ -120,6 +122,7 @@ impl Reportable for TypeError {
                 index: _,
                 tuple_type: _,
             } => offset,
+            Self::ExpectedModal(offset, _, _) => offset,
             Self::UnknownType(offset, _, _) => offset,
         }
     }
@@ -142,6 +145,7 @@ impl Reportable for TypeError {
                 index: _,
                 tuple_type: _,
             } => span,
+            Self::ExpectedModal(_, span, _) => span,
             Self::UnknownType(_, span, _) => span,
         }
     }
