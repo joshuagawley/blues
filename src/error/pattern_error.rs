@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use crate::error::Reportable;
 use crate::parser::Span;
 use ariadne::{Color, Fmt, Label, Report, ReportKind, Span as AriadneSpan};
@@ -55,13 +54,13 @@ impl Reportable for PatternError {
 
     fn offset(&self) -> usize {
         match self {
-            Self::Incompatible {span, .. } | Self::MissingElements { span, .. }=> span.start()
+            Self::Incompatible { span, .. } | Self::MissingElements { span, .. } => span.start(),
         }
     }
 
     fn span(&self) -> &Span {
         match self {
-            Self::Incompatible {span, .. } | Self::MissingElements { span, .. }=> span
+            Self::Incompatible { span, .. } | Self::MissingElements { span, .. } => span,
         }
     }
 }

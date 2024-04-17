@@ -1,10 +1,10 @@
 use crate::parser::Span;
+use anyhow::anyhow;
 use ariadne::Source;
 use eval::{context::Context, environment::Environment, prelude::Prelude, value::Value};
 use parser::Parser;
-use std::sync::Arc;
 use std::fs;
-use anyhow::anyhow;
+use std::sync::Arc;
 use syntax::{
     program::{Declaration, Program},
     r#type::Type,
@@ -20,7 +20,7 @@ fn main() -> anyhow::Result<()> {
     let Some(path) = std::env::args().nth(1) else {
         return Err(anyhow!("Usage: stlc <file>"));
     };
-    
+
     let source = fs::read_to_string(&path)?;
     let parser = Parser::new(path.clone());
     let Program(decls) = parser.parse_source(&source)?;
@@ -49,10 +49,9 @@ fn main() -> anyhow::Result<()> {
                 let Ok(r#type) = r#type else {
                     let reports = r#type.unwrap_err();
                     for report in reports {
-                        report.build_report().eprint((
-                            path.clone(),
-                            Source::from(&source),
-                        ))?;
+                        report
+                            .build_report()
+                            .eprint((path.clone(), Source::from(&source)))?;
                     }
                     std::process::exit(1)
                 };

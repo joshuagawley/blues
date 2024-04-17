@@ -425,7 +425,7 @@ impl Context {
     fn type_of_fix(&mut self, abs: &Term, span: &Span) -> MaybeType {
         let abs_type = self.resolve_type_of(abs)?;
         // eprintln!("abs_type: {abs_type:#?}");
-        let  (param_type, return_type) = abs_type.unroll_abs()?;
+        let (param_type, return_type) = abs_type.unroll_abs()?;
         let param_type = self.resolve(*param_type)?;
         let return_type = self.resolve(*return_type)?;
 
@@ -455,7 +455,7 @@ impl Context {
         let return_type = self.resolve(*return_type)?;
         // eprintln!("param_type: {param_type}");
         // eprintln!("return_type: {return_type}");
-        
+
         // if !matches!(*param_type.clone().unroll_abs()?.0, Type::Modal(..)) {
         //     return Err(vec![TypeError::ExpectedModal(span.start(), span.clone(), param_type.clone()).into()]);
         // }
@@ -469,7 +469,7 @@ impl Context {
                 expected: param_type,
                 actual: return_type,
             }
-                .into()])
+            .into()])
         }
 
         // // eprintln!("Resolving parameter type");
@@ -480,9 +480,9 @@ impl Context {
         // eprintln!("return_type: {return_type}");
 
         // let (input_param_type, input_return_type) = param_type.unroll_abs()?;
-        // 
+        //
         // let (output_param_type, output_return_type) = return_type.unroll_abs()?;
-        // 
+        //
         // eprintln!("input: {input_param_type} -> {input_return_type}");
         // eprintln!("output: {output_param_type} -> {output_param_type}");
         // if input_param_type != output_param_type {
@@ -494,7 +494,7 @@ impl Context {
         //     }
         //     .into()]);
         // }
-        // 
+        //
         // if *input_return_type != *output_return_type {
         //     return Err(vec![TypeError::Mismatch {
         //         offset: span.start(),
@@ -504,7 +504,7 @@ impl Context {
         //     }
         //     .into()]);
         // }
-        // 
+        //
         // Ok(*output_return_type)
     }
 

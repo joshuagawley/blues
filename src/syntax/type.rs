@@ -1,9 +1,9 @@
 use crate::error::type_error::TypeError;
 use crate::error::Errors;
 use crate::parser::Span;
+use ariadne::Span as AriadneSpan;
 use core::fmt::Display;
 use indexmap::IndexMap;
-use ariadne::Span as AriadneSpan;
 
 #[derive(Clone, Debug)]
 pub enum Type {
@@ -19,7 +19,6 @@ pub enum Type {
 }
 
 impl Type {
-    
     pub fn make_error_abs() -> Self {
         Self::Abstraction(
             Span::default(),

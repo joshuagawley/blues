@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use anyhow::anyhow;
 use crate::parser::Span;
+use anyhow::anyhow;
 
 use crate::syntax::{
     abstraction::Abstraction,
@@ -53,7 +53,6 @@ pub fn eval_parallel(mut env: Environment, body: Arc<Term>) -> anyhow::Result<Va
             handle.join().unwrap()
         }
     }
-    
 }
 
 #[derive(Clone, Debug)]
@@ -80,7 +79,7 @@ impl Environment {
                         "Application expected abstraction in first position."
                     ));
                 };
-                
+
                 let mut env = env.clone();
                 env.bind_pattern(&param, arg)?;
                 env.eval(&body.clone())
@@ -90,15 +89,18 @@ impl Environment {
             Term::Box(body, _) => self.eval(body),
             // Fix and MFix
             Term::Fix(abs, span) | Term::MFix(abs, span) => {
-                let arg = Term::Abstraction(Abstraction {
-                    param: Pattern::Variable(span.clone(), "v".to_owned()),
-                    param_type: Type::Tuple(span.clone(), vec![]),
-                    body: Arc::new(Term::Application(
-                        Arc::new(term.clone()),
-                        Arc::new(Term::Variable("v".into(), Span::default())),
-                        span.clone(),
-                    ))
-                }, Span::default());
+                let arg = Term::Abstraction(
+                    Abstraction {
+                        param: Pattern::Variable(span.clone(), "v".to_owned()),
+                        param_type: Type::Tuple(span.clone(), vec![]),
+                        body: Arc::new(Term::Application(
+                            Arc::new(term.clone()),
+                            Arc::new(Term::Variable("v".into(), Span::default())),
+                            span.clone(),
+                        )),
+                    },
+                    Span::default(),
+                );
                 let fixed = Term::Application(abs.clone(), Arc::new(arg), span.clone());
                 self.eval(&fixed)
             }
@@ -135,14 +137,14 @@ impl Environment {
                         eval_prefix(&op, right)
                     }
                     Term::Infix(left, op, right, _) => {
-                        let left = eval_parallel(env.clone() , left.clone())?;
+                        let left = eval_parallel(env.clone(), left.clone())?;
                         let right = eval_parallel(env, right.clone())?;
                         eval_infix(left, &op, right)
                     }
                     Term::Int(i, _) => Ok(Value::Int(*i)),
                     Term::Bool(b, _) => Ok(Value::Bool(*b)),
                     Term::Unit(_) => Ok(Value::Unit),
-                    _ => eval_parallel(env, cloned_body)
+                    _ => eval_parallel(env, cloned_body),
                 }
             }
             Term::Match(value, arms, _) => {
@@ -193,14 +195,21 @@ impl Environment {
     }
 
     pub fn get(&mut self, name: &str) -> anyhow::Result<&Value> {
-        self.values.get(name).ok_or(anyhow!("Variable {name} not in environment!"))
+        self.values
+            .get(name)
+            .ok_or(anyhow!("Variable {name} not in environment!"))
     }
 
     pub fn insert(&mut self, k: String, v: Value) {
         self.values.insert(k, v);
     }
-    
-    fn bind_and_eval(&mut self, pattern: &Pattern, value: Value, term: &Term) -> anyhow::Result<Value> {
+
+    fn bind_and_eval(
+        &mut self,
+        pattern: &Pattern,
+        value: Value,
+        term: &Term,
+    ) -> anyhow::Result<Value> {
         let mut env = self.clone();
         env.bind_pattern(pattern, value)?;
         env.eval(term)

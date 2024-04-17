@@ -1,9 +1,7 @@
-use std::sync::Arc;
 use crate::error::Reportable;
 use crate::parser::Span;
-use ariadne::{Color, Fmt, Label, Report, ReportKind, Span as AriadneSpan};
-
 use crate::syntax::r#type::Type;
+use ariadne::{Color, Fmt, Label, Report, ReportKind, Span as AriadneSpan};
 
 #[derive(Clone, Debug)]
 pub enum TypeError {
@@ -53,7 +51,9 @@ impl Reportable for TypeError {
                     ))
                     .with_color(Color::Red),
             ),
-            TypeError::ExpectedModal(_, span, r#type) => report.with_message(format!("Expected type `{}` to be modal", r#type)),
+            TypeError::ExpectedModal(_, span, r#type) => {
+                report.with_message(format!("Expected type `{}` to be modal", r#type))
+            }
             TypeError::MissingVariants(_, span, variants) => report
                 .with_message("missing variants")
                 .with_labels(variants.iter().map(|(label, variant_type)| {

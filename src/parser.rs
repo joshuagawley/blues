@@ -1,4 +1,3 @@
-use std::error::Error;
 use crate::syntax::abstraction::Abstraction;
 use std::ops::Range;
 

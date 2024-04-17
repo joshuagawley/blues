@@ -1,4 +1,3 @@
-use std::vec;
 use crate::parser::Span;
 
 use crate::syntax::r#type::Type;
@@ -45,8 +44,14 @@ fn make_type_prelude() -> Vec<(String, Type)> {
 
 fn make_context_prelude() -> Vec<(String, Type)> {
     vec![
-        ("true".to_owned(), Type::Variable(Span::default(), "Bool".to_owned())),
-        ("false".to_owned(), Type::Variable(Span::default(), "Bool".to_owned())),
+        (
+            "true".to_owned(),
+            Type::Variable(Span::default(), "Bool".to_owned()),
+        ),
+        (
+            "false".to_owned(),
+            Type::Variable(Span::default(), "Bool".to_owned()),
+        ),
     ]
 }
 
