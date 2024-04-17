@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use crate::parser::Span;
 use anyhow::anyhow;
-use rayon::{ThreadBuilder, ThreadPool};
+use rayon::ThreadPool;
 
 use crate::syntax::{
     abstraction::Abstraction,

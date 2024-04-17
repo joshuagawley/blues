@@ -85,7 +85,7 @@ impl Context {
                 context.resolve_type_of(body)
             }
 
-            Term::LetBox(pattern, value, body, span) => {
+            Term::LetBox(pattern, value, body, _) => {
                 let modal_value_type = self.resolve_type_of(value)?;
                 let value_type = modal_value_type.get_inner_type();
                 let mut context = self.clone();
@@ -665,7 +665,7 @@ impl Context {
 
             Term::Abstraction(
                 Abstraction {
-                    param,
+                    param: _,
                     param_type,
                     body,
                 },
@@ -677,7 +677,7 @@ impl Context {
             Term::Box(term, _) => self.has_local_deps(term),
             Term::Fix(..) => true,
             Term::MFix(term, _) => self.has_local_deps(term),
-            Term::If(guard, if_true, if_false, _) => {
+            Term::If(_guard, if_true, if_false, _) => {
                 self.has_local_deps(if_true) && self.has_local_deps(if_false)
             }
             Term::Int(..) => false,
