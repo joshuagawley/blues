@@ -47,6 +47,7 @@ pub fn eval_parallel(mut env: Environment, body: Arc<Term>) -> anyhow::Result<Va
     match body.as_ref() {
         Term::Int(i, _) => Ok(Value::Int(*i)),
         Term::Bool(b, _) => Ok(Value::Bool(*b)),
+        Term::Unit(_) => Ok(Value::Unit),
         _ => {
             let handle = std::thread::spawn(move || env.eval(&body));
             handle.join().unwrap()
