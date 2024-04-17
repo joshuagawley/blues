@@ -67,8 +67,7 @@ terms        = _{ term ~ ("," ~ term)* }
 tuple_term   =  { "(" ~ terms? ~ ")" }
 variant_term =  { "<" ~ ident ~ "=" ~ term ~ ">" }
 
-pattern    = _{ record_pat | tuple_pat | wild_pat | ident }
-record_pat =  { "{" ~ field_pats ~ "}" }
+pattern    = _{ tuple_pat | wild_pat | ident }
 field_pats = _{ field_pat ~ ("," ~ field_pat)* }
 field_pat  =  { ident ~ ("=" ~ pattern)? }
 tuple_pat  =  { "(" ~ patterns? ~ ")" }
