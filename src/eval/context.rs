@@ -699,16 +699,4 @@ impl Context {
             Term::Variant(_, arms, _) => self.has_local_deps(arms),
         }
     }
-
-    fn check_mismatch(left: &Type, right: &Type, span: &Span) -> Result<(), Errors> {
-        (left == right).then_some(()).ok_or_else(|| {
-            vec![TypeError::Mismatch {
-                offset: span.start(),
-                span: right.span().clone(),
-                expected: left.clone(),
-                actual: right.clone(),
-            }
-            .into()]
-        })
-    }
 }
