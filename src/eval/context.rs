@@ -117,7 +117,7 @@ impl Context {
 
     pub fn resolve_type_of(&mut self, term: &Term) -> MaybeType {
         let r#type = self.type_of(term)?;
-        eprintln!("Type of {term}: {}", r#type);
+        // eprintln!("Type of {term}: {}", r#type);
         self.resolve(r#type)
     }
 
@@ -424,12 +424,12 @@ impl Context {
 
     fn type_of_fix(&mut self, abs: &Term, span: &Span) -> MaybeType {
         let abs_type = self.resolve_type_of(abs)?;
-        eprintln!("abs_type: {abs_type:#?}");
+        // eprintln!("abs_type: {abs_type:#?}");
         let  (param_type, return_type) = abs_type.unroll_abs()?;
         let param_type = self.resolve(*param_type)?;
         let return_type = self.resolve(*return_type)?;
 
-        eprintln!("input: {param_type} -> {return_type}");
+        // eprintln!("input: {param_type} -> {return_type}");
 
         if param_type == return_type {
             Ok(return_type)
@@ -449,16 +449,16 @@ impl Context {
         // eprintln!("Getting function type");
         // eprintln!("abs: {abs}");
         let abs_type = self.resolve_type_of(abs)?;
-        eprintln!("abs_type: {abs_type:#?}");
+        // eprintln!("abs_type: {abs_type:#?}");
         let (param_type, return_type) = abs_type.unroll_abs()?;
         let param_type = self.resolve(*param_type)?;
         let return_type = self.resolve(*return_type)?;
-        eprintln!("param_type: {param_type}");
-        eprintln!("return_type: {return_type}");
+        // eprintln!("param_type: {param_type}");
+        // eprintln!("return_type: {return_type}");
         
-        if !matches!(*param_type.clone().unroll_abs()?.0, Type::Modal(..)) {
-            return Err(vec![TypeError::ExpectedModal(span.start(), span.clone(), param_type.clone()).into()]);
-        }
+        // if !matches!(*param_type.clone().unroll_abs()?.0, Type::Modal(..)) {
+        //     return Err(vec![TypeError::ExpectedModal(span.start(), span.clone(), param_type.clone()).into()]);
+        // }
 
         if param_type == return_type {
             Ok(return_type)
