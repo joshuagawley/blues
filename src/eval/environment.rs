@@ -126,24 +126,8 @@ impl Environment {
                 let value = self.eval(value)?;
                 let mut env = self.clone();
                 env.bind_pattern(pattern, value)?;
-
-                let cloned_body = body.clone();
-
-                match cloned_body.as_ref() {
-                    Term::Prefix(op, right, _) => {
-                        let right = eval_parallel(env, right.clone())?;
-                        eval_prefix(&op, right)
-                    }
-                    Term::Infix(left, op, right, _) => {
-                        let left = eval_parallel(env.clone(), left.clone())?;
-                        let right = eval_parallel(env, right.clone())?;
-                        eval_infix(left, &op, right)
-                    }
-                    Term::Int(i, _) => Ok(Value::Int(*i)),
-                    Term::Bool(b, _) => Ok(Value::Bool(*b)),
-                    Term::Unit(_) => Ok(Value::Unit),
-                    _ => eval_parallel(env, cloned_body),
-                }
+                
+                eval_parallel(env, body.clone())
             }
             Term::Match(value, arms, _) => {
                 let Value::Variant { label, value } = self.eval(value)? else {
