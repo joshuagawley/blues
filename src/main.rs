@@ -30,6 +30,8 @@ fn main() -> anyhow::Result<()> {
 
     Prelude::default().add_prelude_to(&mut context, &mut env);
 
+    let thread_pool = rayon::ThreadPoolBuilder::new().build()?;
+
     for decl in &decls {
         match decl {
             Declaration::Term(pattern, term) => {
@@ -56,7 +58,7 @@ fn main() -> anyhow::Result<()> {
                     std::process::exit(1)
                 };
                 context.bind_pattern(pattern, term, &r#type).unwrap();
-                let value = env.eval(term)?;
+                let value = env.eval(&thread_pool, term)?;
                 env.bind_pattern(pattern, value)?;
             }
             Declaration::Type(name, r#type) => context.insert_type(name.clone(), r#type.clone()),
@@ -65,13 +67,13 @@ fn main() -> anyhow::Result<()> {
 
     let main_type = context.get("main").unwrap();
     let main = env.get("main")?;
-
+    
     match (main, main_type) {
         (Value::Abstraction(abs, env), Type::Abstraction(_, param_type, _))
             if param_type.is_tuple() =>
         {
             let span = Span::default();
-            let value = env.clone().eval(&Term::Application(
+            let value = env.clone().eval(&thread_pool, &Term::Application(
                 Arc::new(Term::Abstraction(abs.clone(), span.clone())),
                 Arc::new(Term::Tuple(vec![], span.clone())),
                 span.clone(),
