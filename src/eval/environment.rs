@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use crate::parser::Span;
 use anyhow::anyhow;
+use rayon::{ThreadBuilder, ThreadPool};
 
 use crate::syntax::{
     abstraction::Abstraction,
@@ -42,15 +43,15 @@ fn eval_prefix(op: &Prefix, right: Value) -> anyhow::Result<Value> {
     }
 }
 
-pub fn eval_parallel(mut env: Environment, body: Arc<Term>) -> anyhow::Result<Value> {
+pub fn eval_parallel(thread_pool: &ThreadPool, mut env: Environment, body: Arc<Term>) -> anyhow::Result<Value> {
     // eprintln!("Spawning thread to evaluate {body}");
     match body.as_ref() {
         Term::Int(i, _) => Ok(Value::Int(*i)),
         Term::Bool(b, _) => Ok(Value::Bool(*b)),
         Term::Unit(_) => Ok(Value::Unit),
         _ => {
-            let handle = std::thread::spawn(move || env.eval(&body));
-            handle.join().unwrap()
+            let maybe_val = thread_pool.install(|| env.eval(thread_pool, &body));
+            maybe_val
         }
     }
 }
@@ -61,11 +62,11 @@ pub struct Environment {
 }
 
 impl Environment {
-    pub fn eval(&mut self, term: &Term) -> anyhow::Result<Value> {
+    pub fn eval(&mut self, thread_pool: &ThreadPool, term: &Term) -> anyhow::Result<Value> {
         match term {
             Term::Abstraction(abs, _) => Ok(Value::Abstraction(abs.clone(), self.clone())),
             Term::Application(abs, arg, _) => {
-                let arg = self.eval(arg)?;
+                let arg = self.eval(thread_pool, arg)?;
                 let Value::Abstraction(
                     Abstraction {
                         param,
@@ -73,18 +74,18 @@ impl Environment {
                         body,
                     },
                     mut env,
-                ) = self.eval(abs)?
+                ) = self.eval(thread_pool, abs)?
                 else {
                     return Err(anyhow!(
                         "Application expected abstraction in first position."
                     ));
                 };
                 
-                env.bind_and_eval(&param, arg, &body.clone())
+                env.bind_and_eval(thread_pool, &param, arg, &body.clone())
             }
-            Term::Ascription(term, _, _) => self.eval(term),
+            Term::Ascription(term, _, _) => self.eval(thread_pool, term),
             Term::Bool(b, _) => Ok(Value::Bool(*b)),
-            Term::Box(body, _) => self.eval(body),
+            Term::Box(body, _) => self.eval(thread_pool, body),
             // Fix and MFix
             Term::Fix(abs, span) | Term::MFix(abs, span) => {
                 let arg = Term::Abstraction(
@@ -100,54 +101,54 @@ impl Environment {
                     Span::default(),
                 );
                 let fixed = Term::Application(abs.clone(), Arc::new(arg), span.clone());
-                self.eval(&fixed)
+                self.eval(thread_pool, &fixed)
             }
             Term::If(guard, if_true, if_false, _) => {
-                let Value::Bool(guard) = self.eval(guard)? else {
+                let Value::Bool(guard) = self.eval(thread_pool, guard)? else {
                     return Err(anyhow!("If expected boolean in condition!"));
                 };
                 if guard {
-                    self.eval(if_true)
+                    self.eval(thread_pool, if_true)
                 } else {
-                    self.eval(if_false)
+                    self.eval(thread_pool, if_false)
                 }
             }
             Term::Infix(left, op, right, _) => {
-                let left = self.eval(left)?;
-                let right = self.eval(right)?;
+                let left = self.eval(thread_pool, left)?;
+                let right = self.eval(thread_pool, right)?;
                 eval_infix(left, op, right)
             }
             Term::Int(i, _) => Ok(Value::Int(*i)),
             Term::Let(pattern, value, body, _) => {
-                let value = self.eval(value)?;
-                self.bind_and_eval(pattern, value, body)
+                let value = self.eval(thread_pool, value)?;
+                self.bind_and_eval(thread_pool, pattern, value, body)
             }
             Term::LetBox(pattern, value, body, _) => {
-                let value = self.eval(value)?;
+                let value = self.eval(thread_pool, value)?;
                 let mut env = self.clone();
                 env.bind_pattern(pattern, value)?;
                 
-                eval_parallel(env, body.clone())
+                eval_parallel(thread_pool, env, body.clone())
             }
             Term::Match(value, arms, _) => {
-                let Value::Variant { label, value } = self.eval(value)? else {
+                let Value::Variant { label, value } = self.eval(thread_pool, value)? else {
                     return Err(anyhow!("Match expected variant"));
                 };
                 let Some((pattern, body)) = arms.get(&label) else {
                     return Err(anyhow!("Field {label} not in match arms"));
                 };
 
-                self.bind_and_eval(pattern, *value, body)
+                self.bind_and_eval(thread_pool, pattern, *value, body)
             }
             Term::Postfix(_, _, _) => unimplemented!(),
             Term::Prefix(op, right, _) => {
-                let right = self.eval(right)?;
+                let right = self.eval(thread_pool, right)?;
                 eval_prefix(op, right)
             }
-            Term::Tuple(values, _) => self.eval_vec_terms(values, Value::Tuple),
+            Term::Tuple(values, _) => self.eval_vec_terms(thread_pool, values, Value::Tuple),
             Term::Variable(name, _) => self.get(name).cloned(),
             Term::Variant(label, value, _) => {
-                let value = self.eval(value)?;
+                let value = self.eval(thread_pool, value)?;
                 Ok(Value::to_variant(label, value))
             }
             Term::Unit(_) => Ok(Value::Unit),
@@ -188,23 +189,25 @@ impl Environment {
 
     fn bind_and_eval(
         &mut self,
+        thread_pool: &ThreadPool,
         pattern: &Pattern,
         value: Value,
         term: &Term,
     ) -> anyhow::Result<Value> {
         let mut env = self.clone();
         env.bind_pattern(pattern, value)?;
-        env.eval(term)
+        env.eval(thread_pool, term)
     }
 
     fn eval_vec_terms(
         &mut self,
+        thread_pool: &ThreadPool,
         values: &[Term],
         value_type: impl FnOnce(Vec<Value>) -> Value,
     ) -> anyhow::Result<Value> {
         values
             .iter()
-            .map(|value| self.eval(&value.clone()))
+            .map(|value| self.eval(thread_pool, &value.clone()))
             .collect::<Result<Vec<_>, _>>()
             .map(value_type)
     }
