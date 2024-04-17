@@ -43,8 +43,16 @@ fn eval_prefix(op: &Prefix, right: Value) -> anyhow::Result<Value> {
 }
 
 pub fn eval_parallel(mut env: Environment, body: Arc<Term>) -> anyhow::Result<Value> {
-    let handle = std::thread::spawn(move || env.eval(&body));
-    handle.join().unwrap()
+    // eprintln!("Spawning thread to evaluate {body}");
+    match body.as_ref() {
+        Term::Int(i, _) => Ok(Value::Int(*i)),
+        Term::Bool(b, _) => Ok(Value::Bool(*b)),
+        _ => {
+            let handle = std::thread::spawn(move || env.eval(&body));
+            handle.join().unwrap()
+        }
+    }
+    
 }
 
 #[derive(Clone, Debug)]
