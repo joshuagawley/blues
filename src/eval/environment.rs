@@ -72,17 +72,15 @@ impl Environment {
                         param_type: _,
                         body,
                     },
-                    env,
+                    mut env,
                 ) = self.eval(abs)?
                 else {
                     return Err(anyhow!(
                         "Application expected abstraction in first position."
                     ));
                 };
-
-                let mut env = env.clone();
-                env.bind_pattern(&param, arg)?;
-                env.eval(&body.clone())
+                
+                env.bind_and_eval(&param, arg, &body.clone())
             }
             Term::Ascription(term, _, _) => self.eval(term),
             Term::Bool(b, _) => Ok(Value::Bool(*b)),
