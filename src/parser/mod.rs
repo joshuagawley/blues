@@ -25,14 +25,14 @@ pub struct Span {
 }
 
 impl Span {
-    pub fn new<S: Into<String>>(source: S, range: Range<usize>) -> Self {
+    pub fn new(source: &str, range: Range<usize>) -> Self {
         Self {
-            source: source.into(),
+            source: source.to_owned(),
             range,
         }
     }
 
-    pub fn from_pest<S: Into<String>>(source: S, span: pest::Span) -> Self {
+    pub fn from_pest(source: &str, span: pest::Span) -> Self {
         Self::new(source, span.start()..span.end())
     }
 
@@ -40,7 +40,7 @@ impl Span {
         let start = self.range.start;
         let end = self.range.end;
         (self.source == other.source && start <= end)
-            .then_some(Self::new(self.source.clone(), start..end))
+            .then_some(Self::new(&self.source, start..end))
     }
 }
 
@@ -61,7 +61,7 @@ impl ariadne::Span for Span {
 }
 
 #[derive(Parser)]
-#[grammar = "grammar.pest"]
+#[grammar = "parser/grammar.pest"]
 pub struct Parser {
     source_name: String,
     type_parser: PrattParser<Rule>,
@@ -345,7 +345,7 @@ impl Parser {
     }
 
     fn span_from(&self, pair: &Pair<Rule>) -> Span {
-        Span::from_pest(self.source_name.clone(), pair.as_span())
+        Span::from_pest(&self.source_name, pair.as_span())
     }
 }
 
