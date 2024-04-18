@@ -54,7 +54,7 @@ impl Context {
             }
             Term::Int(_, span) => Ok(Type::Int(span.clone())),
             Term::Infix(left, op, right, span) => self.type_of_infix(left, op, right, span),
-            Term::Let(pattern, value, body, span) => {
+            Term::Let(pattern, value, body, _) => {
                 let value_type = self.resolve_type_of(value)?;
                 let mut context = self.clone();
                 context.bind_pattern(pattern, term, &value_type)?;
