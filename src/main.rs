@@ -4,7 +4,9 @@ use ariadne::Source;
 use eval::{context::Context, environment::Environment, prelude::Prelude, value::Value};
 use parser::Parser;
 use std::fs;
+use std::path::Path;
 use std::sync::Arc;
+use rayon::ThreadPool;
 use syntax::{
     program::{Declaration, Program},
     r#type::Type,
@@ -16,23 +18,18 @@ mod eval;
 mod parser;
 mod syntax;
 
-fn main() -> anyhow::Result<()> {
-    let Some(path) = std::env::args().nth(1) else {
-        return Err(anyhow!("Usage: b7 <file>"));
-    };
-
-    let source = fs::read_to_string(&path)?;
-    let parser = Parser::new(path.clone());
-    let Program(decls) = parser.parse_source(&source)?;
-
+fn make_context() -> (Context, Environment) {
     let mut context = Context::default();
     let mut env = Environment::default();
 
     Prelude::default().add_prelude_to(&mut context, &mut env);
 
-    let thread_pool = rayon::ThreadPoolBuilder::new().build()?;
+    (context, env)
 
-    for decl in &decls {
+}
+
+fn type_check(decls: &[Declaration], context: &mut Context, env: &mut Environment, source: &str, path: String, thread_pool: &ThreadPool) -> anyhow::Result<()> {
+    for decl in decls {
         match decl {
             Declaration::Term(pattern, term) => {
                 let raw_type = context.type_of(term);
@@ -64,6 +61,23 @@ fn main() -> anyhow::Result<()> {
             Declaration::Type(name, r#type) => context.insert_type(name.clone(), r#type.clone()),
         }
     }
+    Ok(())
+}
+
+fn main() -> anyhow::Result<()> {
+    let Some(path) = std::env::args().nth(1) else {
+        return Err(anyhow!("Usage: b7 <file>"));
+    };
+
+    let source = fs::read_to_string(&path)?;
+    let parser = Parser::new(path.clone());
+    let Program(decls) = parser.parse_source(&source)?;
+
+    let (mut context, mut env) = make_context();
+
+    let thread_pool = rayon::ThreadPoolBuilder::new().build()?;
+
+    type_check(&decls, &mut context, &mut env, &source, path, &thread_pool)?;
 
     let main_type = context.get("main").unwrap();
     let main = env.get("main")?;
