@@ -77,6 +77,9 @@ impl Context {
                 .map(|value| self.resolve_type_of(value))
                 .collect::<Result<_, _>>()
                 .map(|value_types| Type::Tuple(span.clone(), value_types)),
+            Term::TupleProjection(tuple, index, span) => {
+                self.type_of_tuple_proj(tuple, term.span().start(), *index, span)
+            }
             Term::Unit(span) => Ok(Type::Unit(span.clone())),
             Term::Variable(name, span) => self.get(name).cloned().ok_or_else(|| {
                 vec![TypeError::UndefinedVariable(span.start(), span.clone(), name.clone()).into()]
@@ -515,16 +518,14 @@ impl Context {
             .iter()
             .filter_map(|(label, _)| (!arms.contains_key(label)).then_some(label.clone()))
             .collect::<Vec<String>>();
+        
+        if !extraneous.is_empty() { todo!(); }
 
         let mut errors = Vec::new();
 
         if !absent.is_empty() {
             errors
                 .push(TypeError::MissingVariants(term.span().start(), span.clone(), absent).into());
-        }
-
-        if !extraneous.is_empty() {
-            todo!()
         }
 
         if !errors.is_empty() {
@@ -633,8 +634,41 @@ impl Context {
             Term::Postfix(term, _, _) => self.has_local_deps(term),
             Term::Prefix(_, term, _) => self.has_local_deps(term),
             Term::Tuple(terms, _) => terms.iter().all(|term| self.has_local_deps(term)),
+            Term::TupleProjection(tuple, _, _) => self.has_local_deps(tuple),
             Term::Unit(..) => false,
             Term::Variant(_, arms, _) => self.has_local_deps(arms),
+        }
+    }
+    fn type_of_tuple_proj(
+        &mut self,
+        tuple: &Term,
+        span_offset: usize,
+        index: usize,
+        span: &Span,
+    ) -> MaybeType {
+        let raw_type = self.type_of(tuple)?;
+        let tuple_type = self.resolve(raw_type.clone())?;
+
+        match tuple_type {
+            Type::Tuple(_, value) => value.get(index).cloned().ok_or(
+                TypeError::UnknownIndex {
+                    offset: span_offset,
+                    span: span.clone(),
+                    index,
+                    tuple_type: raw_type,
+                }
+                .into(),
+            ),
+            _ => TypeError::Mismatch {
+                offset: span_offset,
+                span: tuple.span().clone(),
+                expected: Type::Tuple(
+                    Span::default(),
+                    vec![Type::Variable(Span::default(), "...*".to_owned())],
+                ),
+                actual: tuple_type,
+            }
+            .into(),
         }
     }
 }

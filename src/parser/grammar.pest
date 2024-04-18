@@ -2,7 +2,7 @@ program = _{ SOI ~ declarations ~ EOI }
 
 declarations =  { declaration* }
 declaration  = _{ let_decl | let_box_decl | type_decl }
-let_decl     =  { "let" ~ pattern ~ "=" ~ term }
+let_decl     =  { "let" ~ pattern ~ "=" ~ term}
 let_box_decl =  { "let" ~ "box" ~ ident ~ "=" ~ term ~ "in" ~ term }
 type_decl    =  { "let" ~ "type" ~ ident ~ "=" ~ type }
 
@@ -60,7 +60,7 @@ not_op = { "!" }
 
 app_term     =  { proj_term+ }
 proj_term    =  { primary_term ~ proj_field* }
-proj_field   = _{ "." ~ (ident | nat) }
+proj_field   = _{ "." ~ nat }
 primary_term = _{ list_term | tuple_term | variant_term | bool | ident | nat }
 list_term    =  { "[" ~ terms? ~ "]" }
 terms        = _{ term ~ ("," ~ term)* }

@@ -233,7 +233,16 @@ impl Parser {
                 inner_rules
                     .map(|pair| {
                         let mut inner_rules = pair.into_inner();
-                        self.parse_primary(inner_rules.next().unwrap())
+                        let primary = self.parse_primary(inner_rules.next().unwrap());
+
+                        inner_rules.fold(primary, |term, pair| match pair.as_rule() {
+                            Rule::nat => {
+                                let span = self.span_from(&pair);
+                                let index = pair.as_str().parse().unwrap();
+                                Term::TupleProjection(Arc::new(term), index, span)
+                            }
+                            _ => unreachable!(),
+                        })
                     })
                     .reduce(|f, a| {
                         let span = f.span().join(a.span()).unwrap();

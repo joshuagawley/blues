@@ -24,6 +24,7 @@ pub enum Term {
     Postfix(Arc<Term>, Postfix, Span),
     Prefix(Prefix, Arc<Term>, Span),
     Tuple(Vec<Term>, Span),
+    TupleProjection(Arc<Term>, usize, Span),
     Unit(Span),
     Variable(String, Span),
     Variant(String, Arc<Term>, Span),
@@ -48,6 +49,7 @@ impl Term {
             Term::Postfix(_, _, span) => span,
             Term::Prefix(_, _, span) => span,
             Term::Tuple(_, span) => span,
+            Term::TupleProjection(_, _, span) => span,
             Term::Unit(span) => span,
             Term::Variable(_, span) => span,
             Term::Variant(_, _, span) => span,
@@ -87,6 +89,7 @@ impl Display for Term {
                 let values = values.iter().map(Term::to_string).collect::<Vec<_>>();
                 write!(f, "[{}]", values.join(", "))
             }
+            Term::TupleProjection(tuple, index, _) => write!(f, "{tuple}.{index}"),
             Term::Unit(_) => write!(f, "Unit"),
             Term::Variable(name, _) => write!(f, "{name}"),
             Term::Variant(field, value, _) => write!(f, "<{field} = {value}>"),

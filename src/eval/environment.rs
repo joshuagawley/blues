@@ -4,7 +4,6 @@ use std::sync::Arc;
 use crate::parser::Span;
 use anyhow::anyhow;
 use rayon::ThreadPool;
-
 use crate::syntax::{
     abstraction::Abstraction,
     pattern::Pattern,
@@ -147,6 +146,7 @@ impl Environment {
                 eval_prefix(op, right)
             }
             Term::Tuple(values, _) => self.eval_vec_terms(thread_pool, values, Value::Tuple),
+            Term::TupleProjection(tuple, index, _) => self.eval_tuple_proj(thread_pool, tuple, *index),
             Term::Variable(name, _) => self.get(name).cloned(),
             Term::Variant(label, value, _) => {
                 let value = self.eval(thread_pool, value)?;
@@ -211,6 +211,14 @@ impl Environment {
             .map(|value| self.eval(thread_pool, &value.clone()))
             .collect::<Result<Vec<_>, _>>()
             .map(value_type)
+    }
+    
+    fn eval_tuple_proj(&mut self, thread_pool: &ThreadPool, tuple: &Term, index: usize) -> anyhow::Result<Value> {
+        let Value::Tuple(values) = self.eval(thread_pool, tuple)? else {
+            return Err(anyhow!("Projection expected tuple but got {tuple:?}!"));
+        };
+        
+        values.get(index).cloned().ok_or(anyhow!("Index {index} not in tuple!"))
     }
 }
 
