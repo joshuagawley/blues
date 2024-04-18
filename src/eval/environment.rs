@@ -39,20 +39,17 @@ fn eval_prefix(op: &Prefix, right: Value) -> anyhow::Result<Value> {
             label: if label == "true" { "false" } else { "true" }.to_owned(),
             value: Box::new(Value::Tuple(Vec::new())),
         }),
+        (Prefix::Not, Value::Bool(b)) => Ok(Value::Bool(!b)),
         _ => unimplemented!(),
     }
 }
 
 pub fn eval_parallel(thread_pool: &ThreadPool, mut env: Environment, body: Arc<Term>) -> anyhow::Result<Value> {
-    // eprintln!("Spawning thread to evaluate {body}");
     match body.as_ref() {
         Term::Int(i, _) => Ok(Value::Int(*i)),
         Term::Bool(b, _) => Ok(Value::Bool(*b)),
         Term::Unit(_) => Ok(Value::Unit),
-        _ => {
-            let maybe_val = thread_pool.install(|| env.eval(thread_pool, &body));
-            maybe_val
-        }
+        _ => thread_pool.install(|| env.eval(thread_pool, &body))
     }
 }
 

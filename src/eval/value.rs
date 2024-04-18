@@ -47,15 +47,15 @@ impl PartialEq for Value {
 impl Display for Value {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Value::Abstraction(abstraction, _) => write!(f, "{abstraction}"),
-            Value::Bool(b) => write!(f, "{b}"),
-            Value::Int(n) => write!(f, "{n}"),
-            Value::Tuple(values) => {
+            Self::Abstraction(abstraction, _) => write!(f, "{abstraction}"),
+            Self::Bool(b) => write!(f, "{b}"),
+            Self::Int(n) => write!(f, "{n}"),
+            Self::Tuple(values) => {
                 let values = values.iter().map(Value::to_string).collect::<Vec<_>>();
                 write!(f, "[{}]", values.join(", "))
             }
-            Value::Unit => write!(f, "Unit"),
-            Value::Variant { label, value } => write!(f, "<{label} = {value}>"),
+            Self::Unit => write!(f, "Unit"),
+            Self::Variant { label, value } => write!(f, "<{label} = {value}>"),
         }
     }
 }

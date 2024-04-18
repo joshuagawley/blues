@@ -19,33 +19,9 @@ use indexmap::IndexMap;
 pub struct Context {
     types: HashMap<String, Type>,
     pub(crate) bindings: HashMap<String, Type>,
-    // local_values: HashMap<String, Type>,
-    // modal_values: HashMap<String, Type>, // _context_type: PhantomData,
 }
 
 impl Context {
-    // pub fn get_local(&self, name: &str) -> Option<&Type> {
-    //     self.local_values.get(name)
-    // }
-    //
-    // pub fn get_modal(&self, name: &str) -> Option<&Type> {
-    //     self.modal_values.get(name)
-    // }
-
-    // pub fn insert_local(&mut self, name: String, r#type: Type) {
-    //     if matches!(r#type, Type::Modal(..)) {
-    //         panic!("{name} is modal, so cannot be put in local context!")
-    //     }
-    //     self.local_values.insert(name, r#type);
-    // }
-    //
-    // pub fn insert_modal(&mut self, name: String, r#type: Type) {
-    //     if !matches!(r#type, Type::Modal(..)) {
-    //         panic!("{name} is not modal, it has local dependencies!")
-    //     }
-    //     self.modal_values.insert(name, r#type);
-    // }
-
     pub fn type_of(&mut self, term: &Term) -> MaybeType {
         match term {
             Term::Abstraction(
@@ -424,12 +400,10 @@ impl Context {
 
     fn type_of_fix(&mut self, abs: &Term, span: &Span) -> MaybeType {
         let abs_type = self.resolve_type_of(abs)?;
-        // eprintln!("abs_type: {abs_type:#?}");
         let (param_type, return_type) = abs_type.unroll_abs()?;
+        
         let param_type = self.resolve(*param_type)?;
         let return_type = self.resolve(*return_type)?;
-
-        // eprintln!("input: {param_type} -> {return_type}");
 
         if param_type == return_type {
             Ok(return_type)
@@ -445,20 +419,14 @@ impl Context {
     }
 
     fn type_of_mfix(&mut self, abs: &Term, span: &Span) -> MaybeType {
-        // eprintln!("Getting type of mobile fixpoint");
-        // eprintln!("Getting function type");
-        // eprintln!("abs: {abs}");
         let abs_type = self.resolve_type_of(abs)?;
-        // eprintln!("abs_type: {abs_type:#?}");
         let (param_type, return_type) = abs_type.unroll_abs()?;
         let param_type = self.resolve(*param_type)?;
         let return_type = self.resolve(*return_type)?;
-        // eprintln!("param_type: {param_type}");
-        // eprintln!("return_type: {return_type}");
 
-        // if !matches!(*param_type.clone().unroll_abs()?.0, Type::Modal(..)) {
-        //     return Err(vec![TypeError::ExpectedModal(span.start(), span.clone(), param_type.clone()).into()]);
-        // }
+        if !matches!(*param_type.clone().unroll_abs()?.0, Type::Modal(..)) {
+            return Err(vec![TypeError::ExpectedModal(span.start(), span.clone(), param_type.clone()).into()]);
+        }
 
         if param_type == return_type {
             Ok(return_type)
@@ -471,41 +439,6 @@ impl Context {
             }
             .into()])
         }
-
-        // // eprintln!("Resolving parameter type");
-        // let param_type = self.resolve(*param_type)?;
-        // eprintln!("param_type: {param_type}");
-        // eprintln!("Resolving return type");
-        // let return_type = self.resolve(*return_type)?;
-        // eprintln!("return_type: {return_type}");
-
-        // let (input_param_type, input_return_type) = param_type.unroll_abs()?;
-        //
-        // let (output_param_type, output_return_type) = return_type.unroll_abs()?;
-        //
-        // eprintln!("input: {input_param_type} -> {input_return_type}");
-        // eprintln!("output: {output_param_type} -> {output_param_type}");
-        // if input_param_type != output_param_type {
-        //     return Err(vec![TypeError::Mismatch {
-        //         offset: span.start(),
-        //         span: output_param_type.span().clone(),
-        //         expected: *input_return_type,
-        //         actual: *output_param_type,
-        //     }
-        //     .into()]);
-        // }
-        //
-        // if *input_return_type != *output_return_type {
-        //     return Err(vec![TypeError::Mismatch {
-        //         offset: span.start(),
-        //         span: output_param_type.span().clone(),
-        //         expected: *input_param_type,
-        //         actual: *output_param_type,
-        //     }
-        //     .into()]);
-        // }
-        //
-        // Ok(*output_return_type)
     }
 
     fn type_of_if(
@@ -547,7 +480,7 @@ impl Context {
         term: &Term,
         value: &Term,
         arms: &HashMap<String, (Pattern, Term)>,
-        span: &Span,
+        _span: &Span,
     ) -> MaybeType {
         let value_type = self.resolve_type_of(value)?;
         let Type::Variant(span, variants) = &value_type else {

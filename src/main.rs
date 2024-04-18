@@ -18,7 +18,7 @@ mod syntax;
 
 fn main() -> anyhow::Result<()> {
     let Some(path) = std::env::args().nth(1) else {
-        return Err(anyhow!("Usage: stlc <file>"));
+        return Err(anyhow!("Usage: b7 <file>"));
     };
 
     let source = fs::read_to_string(&path)?;

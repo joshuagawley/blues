@@ -20,6 +20,7 @@ pub enum Term {
     Let(Pattern, Arc<Term>, Arc<Term>, Span),
     LetBox(Pattern, Arc<Term>, Arc<Term>, Span),
     Match(Arc<Term>, HashMap<String, (Pattern, Term)>, Span),
+    #[allow(dead_code)]
     Postfix(Arc<Term>, Postfix, Span),
     Prefix(Prefix, Arc<Term>, Span),
     Tuple(Vec<Term>, Span),
@@ -93,7 +94,7 @@ impl Display for Term {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Infix {
     Or,
     And,
@@ -128,7 +129,7 @@ impl Display for Infix {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Postfix {}
 
 impl Display for Postfix {
@@ -137,9 +138,7 @@ impl Display for Postfix {
     }
 }
 
-unsafe impl Sync for Postfix {}
-
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Prefix {
     Neg,
     Not,
