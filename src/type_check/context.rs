@@ -96,7 +96,6 @@ impl Context {
 
     pub fn resolve_type_of(&mut self, term: &Term) -> MaybeType {
         let r#type = self.type_of(term)?;
-        // eprintln!("Type of {term}: {}", r#type);
         self.resolve(r#type)
     }
 
@@ -487,7 +486,7 @@ impl Context {
         &mut self,
         term: &Term,
         value: &Term,
-        arms: &HashMap<String, (Pattern, Term)>,
+        arms: &IndexMap<String, (Pattern, Term)>,
         _span: &Span,
     ) -> MaybeType {
         let value_type = self.resolve_type_of(value)?;
@@ -518,8 +517,10 @@ impl Context {
             .iter()
             .filter_map(|(label, _)| (!arms.contains_key(label)).then_some(label.clone()))
             .collect::<Vec<String>>();
-        
-        if !extraneous.is_empty() { todo!(); }
+
+        if !extraneous.is_empty() {
+            todo!();
+        }
 
         let mut errors = Vec::new();
 

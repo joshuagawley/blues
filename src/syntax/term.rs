@@ -2,6 +2,7 @@ use crate::parser::Span;
 use core::fmt::Display;
 use std::collections::HashMap;
 use std::sync::Arc;
+use indexmap::IndexMap;
 
 use super::{abstraction::Abstraction, pattern::Pattern, r#type::Type};
 
@@ -19,7 +20,7 @@ pub enum Term {
     Infix(Arc<Term>, Infix, Arc<Term>, Span),
     Let(Pattern, Arc<Term>, Arc<Term>, Span),
     LetBox(Pattern, Arc<Term>, Arc<Term>, Span),
-    Match(Arc<Term>, HashMap<String, (Pattern, Term)>, Span),
+    Match(Arc<Term>, IndexMap<String, (Pattern, Term)>, Span),
     #[allow(dead_code)]
     Postfix(Arc<Term>, Postfix, Span),
     Prefix(Prefix, Arc<Term>, Span),
