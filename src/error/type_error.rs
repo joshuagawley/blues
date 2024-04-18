@@ -159,12 +159,12 @@ impl From<TypeError> for super::Error {
 
 impl From<TypeError> for super::Errors {
     fn from(err: TypeError) -> Self {
-        vec![Box::new(err)]
+        vec![err.into()]
     }
 }
 
 impl<T> From<TypeError> for Result<T, super::Errors> {
     fn from(err: TypeError) -> Self {
-        Err(vec![Box::new(err)])
+        Err(err.into())
     }
 }
