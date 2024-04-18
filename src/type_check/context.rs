@@ -401,7 +401,7 @@ impl Context {
     fn type_of_fix(&mut self, abs: &Term, span: &Span) -> MaybeType {
         let abs_type = self.resolve_type_of(abs)?;
         let (param_type, return_type) = abs_type.unroll_abs()?;
-        
+
         let param_type = self.resolve(*param_type)?;
         let return_type = self.resolve(*return_type)?;
 
@@ -425,7 +425,12 @@ impl Context {
         let return_type = self.resolve(*return_type)?;
 
         if !matches!(*param_type.clone().unroll_abs()?.0, Type::Modal(..)) {
-            return Err(vec![TypeError::ExpectedModal(span.start(), span.clone(), param_type.clone()).into()]);
+            return Err(vec![TypeError::ExpectedModal(
+                span.start(),
+                span.clone(),
+                param_type.clone(),
+            )
+            .into()]);
         }
 
         if param_type == return_type {

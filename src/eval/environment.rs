@@ -44,12 +44,16 @@ fn eval_prefix(op: &Prefix, right: Value) -> anyhow::Result<Value> {
     }
 }
 
-pub fn eval_parallel(thread_pool: &ThreadPool, mut env: Environment, body: Arc<Term>) -> anyhow::Result<Value> {
+pub fn eval_parallel(
+    thread_pool: &ThreadPool,
+    mut env: Environment,
+    body: Arc<Term>,
+) -> anyhow::Result<Value> {
     match body.as_ref() {
         Term::Int(i, _) => Ok(Value::Int(*i)),
         Term::Bool(b, _) => Ok(Value::Bool(*b)),
         Term::Unit(_) => Ok(Value::Unit),
-        _ => thread_pool.install(|| env.eval(thread_pool, &body))
+        _ => thread_pool.install(|| env.eval(thread_pool, &body)),
     }
 }
 
@@ -77,7 +81,7 @@ impl Environment {
                         "Application expected abstraction in first position."
                     ));
                 };
-                
+
                 env.bind_and_eval(thread_pool, &param, arg, &body.clone())
             }
             Term::Ascription(term, _, _) => self.eval(thread_pool, term),
@@ -124,7 +128,7 @@ impl Environment {
                 let value = self.eval(thread_pool, value)?;
                 let mut env = self.clone();
                 env.bind_pattern(pattern, value)?;
-                
+
                 eval_parallel(thread_pool, env, body.clone())
             }
             Term::Match(value, arms, _) => {

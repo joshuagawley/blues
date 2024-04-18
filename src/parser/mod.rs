@@ -39,8 +39,7 @@ impl Span {
     pub fn join(&self, other: &Self) -> Option<Self> {
         let start = self.range.start;
         let end = self.range.end;
-        (self.source == other.source && start <= end)
-            .then_some(Self::new(&self.source, start..end))
+        (self.source == other.source && start <= end).then_some(Self::new(&self.source, start..end))
     }
 }
 

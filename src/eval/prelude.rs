@@ -1,8 +1,9 @@
 use crate::parser::Span;
 
 use crate::syntax::r#type::Type;
+use crate::type_check::context::Context;
 
-use super::{context::Context, environment::Environment, value::Value};
+use super::{environment::Environment, value::Value};
 
 #[derive(Clone, Debug)]
 pub struct Prelude {
@@ -39,7 +40,7 @@ fn make_type_prelude() -> Vec<(String, Type)> {
     vec![
         ("Bool".to_owned(), Type::Bool(Span::default())),
         ("Int".to_owned(), Type::Int(Span::default())),
-        ("Unit".to_owned(), Type::Unit(Span::default()))
+        ("Unit".to_owned(), Type::Unit(Span::default())),
     ]
 }
 

@@ -51,7 +51,7 @@ impl Reportable for TypeError {
                     ))
                     .with_color(Color::Red),
             ),
-            TypeError::ExpectedModal(_, span, r#type) => {
+            TypeError::ExpectedModal(_, _, r#type) => {
                 report.with_message(format!("Expected type `{}` to be modal", r#type))
             }
             TypeError::MissingVariants(_, span, variants) => report

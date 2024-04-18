@@ -1,22 +1,23 @@
 use crate::parser::Span;
 use anyhow::anyhow;
 use ariadne::Source;
-use eval::{context::Context, environment::Environment, prelude::Prelude, value::Value};
+use eval::{environment::Environment, prelude::Prelude, value::Value};
 use parser::Parser;
-use std::fs;
-use std::path::Path;
-use std::sync::Arc;
 use rayon::ThreadPool;
+use std::fs;
+use std::sync::Arc;
 use syntax::{
     program::{Declaration, Program},
     r#type::Type,
     term::Term,
 };
+use type_check::context::Context;
 
 mod error;
 mod eval;
 mod parser;
 mod syntax;
+mod type_check;
 
 fn make_context() -> (Context, Environment) {
     let mut context = Context::default();
@@ -25,10 +26,16 @@ fn make_context() -> (Context, Environment) {
     Prelude::default().add_prelude_to(&mut context, &mut env);
 
     (context, env)
-
 }
 
-fn type_check(decls: &[Declaration], context: &mut Context, env: &mut Environment, source: &str, path: String, thread_pool: &ThreadPool) -> anyhow::Result<()> {
+fn type_check(
+    decls: &[Declaration],
+    context: &mut Context,
+    env: &mut Environment,
+    source: &str,
+    path: String,
+    thread_pool: &ThreadPool,
+) -> anyhow::Result<()> {
     for decl in decls {
         match decl {
             Declaration::Term(pattern, term) => {
@@ -81,17 +88,20 @@ fn main() -> anyhow::Result<()> {
 
     let main_type = context.get("main").unwrap();
     let main = env.get("main")?;
-    
+
     match (main, main_type) {
         (Value::Abstraction(abs, env), Type::Abstraction(_, param_type, _))
             if param_type.is_tuple() =>
         {
             let span = Span::default();
-            let value = env.clone().eval(&thread_pool, &Term::Application(
-                Arc::new(Term::Abstraction(abs.clone(), span.clone())),
-                Arc::new(Term::Tuple(vec![], span.clone())),
-                span.clone(),
-            ))?;
+            let value = env.clone().eval(
+                &thread_pool,
+                &Term::Application(
+                    Arc::new(Term::Abstraction(abs.clone(), span.clone())),
+                    Arc::new(Term::Tuple(vec![], span.clone())),
+                    span.clone(),
+                ),
+            )?;
             println!("{value}")
         }
         (value, r#type) => println!("{value}: {type}"),
