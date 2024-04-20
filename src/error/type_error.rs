@@ -12,6 +12,7 @@ pub enum TypeError {
         expected: Type,
         actual: Type,
     },
+    VariableDefinedInBothContexts(usize, Span, String),
     MissingVariants(usize, Span, Vec<(String, Type)>),
     UndefinedVariable(usize, Span, String),
     UnknownField(usize, Span, String, Type),
@@ -35,6 +36,13 @@ impl Reportable for TypeError {
                 .with_label(
                     Label::new(span.clone())
                         .with_message(format!("Expr {} has local deps", expr.fg(Color::Red)))
+                        .with_color(Color::Red),
+                ),
+            Self::VariableDefinedInBothContexts(_, span, name) => report
+                .with_message(format!("Variable `{name}` defined in both contexts!"))
+                .with_label(
+                    Label::new(span.clone())
+                        .with_message("defined in both contexts")
                         .with_color(Color::Red),
                 ),
             Self::Mismatch {
@@ -113,6 +121,7 @@ impl Reportable for TypeError {
                 actual: _,
                 expected: _,
             } => offset,
+            Self::VariableDefinedInBothContexts(offset, _, _) => offset,
             Self::MissingVariants(offset, _, _) => offset,
             Self::UndefinedVariable(offset, _, _) => offset,
             Self::UnknownField(offset, _, _, _) => offset,
@@ -136,6 +145,7 @@ impl Reportable for TypeError {
                 actual: _,
                 expected: _,
             } => span,
+            Self::VariableDefinedInBothContexts(_, span, _) => span,
             Self::MissingVariants(_, span, _) => span,
             Self::UndefinedVariable(_, span, _) => span,
             Self::UnknownField(_, span, _, _) => span,

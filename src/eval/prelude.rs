@@ -2,6 +2,7 @@ use crate::parser::Span;
 
 use crate::syntax::r#type::Type;
 use crate::type_check::context::Context;
+use crate::type_check::context::WhichContext::{Local, Mobile};
 
 use super::{environment::Environment, value::Value};
 
@@ -17,9 +18,12 @@ impl Prelude {
         self.types
             .into_iter()
             .for_each(|(name, r#type)| context.insert_type(name, r#type));
+        self.context.clone()
+            .into_iter()
+            .for_each(|(name, r#type)| context.insert(Local, name, r#type));
         self.context
             .into_iter()
-            .for_each(|(name, r#type)| context.insert(name, r#type));
+            .for_each(|(name, r#type)| context.insert(Mobile, name, r#type));
         self.env
             .into_iter()
             .for_each(|(name, value)| env.insert(name, value));

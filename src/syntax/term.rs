@@ -1,6 +1,5 @@
 use crate::parser::Span;
 use core::fmt::Display;
-use std::collections::HashMap;
 use std::sync::Arc;
 use indexmap::IndexMap;
 
@@ -19,6 +18,7 @@ pub enum Term {
     Int(i64, Span),
     Infix(Arc<Term>, Infix, Arc<Term>, Span),
     Let(Pattern, Arc<Term>, Arc<Term>, Span),
+    MLet(Pattern, Arc<Term>, Arc<Term>, Span),
     LetBox(Pattern, Arc<Term>, Arc<Term>, Span),
     Match(Arc<Term>, IndexMap<String, (Pattern, Term)>, Span),
     #[allow(dead_code)]
@@ -45,6 +45,7 @@ impl Term {
             Term::Int(_, span) => span,
             Term::Infix(_, _, _, span) => span,
             Term::Let(_, _, _, span) => span,
+            Term::MLet(_, _, _, span) => span,
             Term::LetBox(_, _, _, span) => span,
             Term::Match(_, _, span) => span,
             Term::Postfix(_, _, span) => span,
@@ -74,6 +75,7 @@ impl Display for Term {
             Term::Int(n, _) => write!(f, "{n}"),
             Term::Infix(lhs, op, rhs, _) => write!(f, "{lhs} {op} {rhs}"),
             Term::Let(pattern, value, body, _) => write!(f, "let {pattern} = {value} in {body}"),
+            Term::MLet(pattern, value, body, _) => write!(f, ",let {pattern} = {value} in {body}"),
             Term::LetBox(pattern, value, body, _) => {
                 write!(f, "let box {pattern} = {value} in {body}")
             }

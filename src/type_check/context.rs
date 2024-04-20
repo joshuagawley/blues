@@ -14,11 +14,19 @@ use crate::error::{Errors, MaybeType};
 use crate::parser::Span;
 use ariadne::Span as AriadneSpan;
 use indexmap::IndexMap;
+use crate::type_check::context::WhichContext::{Local, Mobile};
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum WhichContext {
+    Local,
+    Mobile
+}
 
 #[derive(Clone, Default, Debug)]
 pub struct Context {
     types: HashMap<String, Type>,
-    pub(crate) bindings: HashMap<String, Type>,
+    local_bindings: HashMap<String, Type>,
+    mobile_bindings: HashMap<String, Type>,
 }
 
 impl Context {
@@ -54,10 +62,16 @@ impl Context {
             }
             Term::Int(_, span) => Ok(Type::Int(span.clone())),
             Term::Infix(left, op, right, span) => self.type_of_infix(left, op, right, span),
+            Term::MLet(pattern, value, body, _) => {
+                let value_type = self.resolve_type_of(value)?;
+                let mut context = self.clone();
+                context.bind_pattern(Mobile, pattern, term, &value_type)?;
+                context.resolve_type_of(body)
+            }
             Term::Let(pattern, value, body, _) => {
                 let value_type = self.resolve_type_of(value)?;
                 let mut context = self.clone();
-                context.bind_pattern(pattern, term, &value_type)?;
+                context.bind_pattern(Local, pattern, term, &value_type)?;
                 context.resolve_type_of(body)
             }
 
@@ -65,7 +79,7 @@ impl Context {
                 let modal_value_type = self.resolve_type_of(value)?;
                 let value_type = modal_value_type.get_inner_type();
                 let mut context = self.clone();
-                context.bind_pattern(pattern, term, value_type)?;
+                context.bind_pattern(Local, pattern, term, value_type)?;
                 Ok(context.resolve_type_of(body)?.clone())
             }
             Term::Match(value, arms, span) => self.type_of_match(term, value, arms, span),
@@ -81,9 +95,7 @@ impl Context {
                 self.type_of_tuple_proj(tuple, term.span().start(), *index, span)
             }
             Term::Unit(span) => Ok(Type::Unit(span.clone())),
-            Term::Variable(name, span) => self.get(name).cloned().ok_or_else(|| {
-                vec![TypeError::UndefinedVariable(span.start(), span.clone(), name.clone()).into()]
-            }),
+            Term::Variable(name, span) => self.get(name, term.span().start(), span.clone()).cloned(),
             Term::Variant(label, value, span) => {
                 let value_type = self.resolve_type_of(value)?;
                 Ok(Type::Variant(
@@ -101,6 +113,7 @@ impl Context {
 
     pub fn bind_pattern(
         &mut self,
+        which_context: WhichContext,
         pattern: &Pattern,
         _term: &Term,
         raw_type: &Type,
@@ -117,7 +130,7 @@ impl Context {
                     .into()]);
                 }
                 for (pattern, r#type) in patterns.iter().zip(types.into_iter()) {
-                    self.bind_pattern(pattern, _term, &r#type)?;
+                    self.bind_pattern(which_context, pattern, _term, &r#type)?;
                 }
             }
             (Pattern::Tuple(span, _), other_type) => {
@@ -128,7 +141,7 @@ impl Context {
                 }
                 .into()]);
             }
-            (Pattern::Variable(_, name), value) => self.insert(name.clone(), value),
+            (Pattern::Variable(_, name), value) => self.insert(which_context, name.clone(), value),
             (Pattern::Wildcard(_), _) => {}
         }
 
@@ -192,12 +205,48 @@ impl Context {
         }
     }
 
-    pub fn get(&self, name: &str) -> Option<&Type> {
-        self.bindings.get(name)
+    pub fn get(&self, name: &str, offset: usize, span: Span) -> Result<&Type, Errors> {
+        let maybe_local = self.get_local(name);
+        let maybe_mobile = self.get_mobile(name);
+
+        match (maybe_local, maybe_mobile) {
+            (Some(local), None) => Ok(local),
+            (None, Some(mobile)) => Ok(mobile),
+            (None, None) => Err(vec![TypeError::UndefinedVariable(
+                offset,
+                span,
+                name.to_owned(),
+            )
+            .into()]),
+            (Some(_), Some(_)) => Err(vec![TypeError::VariableDefinedInBothContexts(
+                offset,
+                span,
+                name.to_owned(),
+            )
+            .into()]),
+        }
     }
 
-    pub fn insert(&mut self, name: String, r#type: Type) {
-        self.bindings.insert(name, r#type);
+    fn get_local(&self, name: &str) -> Option<&Type> {
+        self.local_bindings.get(name)
+    }
+
+    pub fn get_mobile(&self, name: &str) -> Option<&Type> {
+        self.mobile_bindings.get(name)
+    }
+
+    pub fn insert(&mut self, which_context: WhichContext, name: String, r#type: Type) {
+        match which_context {
+            WhichContext::Local => self.insert_local(name, r#type),
+            WhichContext::Mobile => self.insert_mobile(name, r#type),
+        }
+    }
+
+    fn insert_local(&mut self, name: String, r#type: Type) {
+        self.local_bindings.insert(name, r#type);
+    }
+    fn insert_mobile(&mut self, name: String, r#type: Type) {
+        self.mobile_bindings.insert(name, r#type);
     }
 
     pub fn insert_type(&mut self, name: String, r#type: Type) {
@@ -214,7 +263,7 @@ impl Context {
     ) -> MaybeType {
         let mut context = self.clone();
         let param_type = self.resolve(param_type.clone())?;
-        context.bind_pattern(param, term, &param_type)?;
+        context.bind_pattern(Local, param, term, &param_type)?;
         let body_type = context.resolve_type_of(body)?;
         Ok(Type::Abstraction(
             span.clone(),
@@ -537,7 +586,7 @@ impl Context {
         for (label, (pattern, body)) in arms {
             let mut content = self.clone();
             let label_type = variants.get(label).unwrap().clone();
-            if let Err(mut err) = content.bind_pattern(pattern, term, &label_type) {
+            if let Err(mut err) = content.bind_pattern(Local, pattern, term, &label_type) {
                 errors.append(&mut err);
             }
             match content.resolve_type_of(body) {
@@ -598,10 +647,8 @@ impl Context {
 
     fn has_local_deps(&self, term: &Term) -> bool {
         match term {
-            Term::Variable(name, _) => {
-                let r#type = self.get(name).unwrap();
-                matches!(r#type, Type::Int(..) | Type::Bool(..) | Type::Modal(..))
-            }
+            Term::Variable(name, _) =>
+                self.get_local(name).is_some(),
 
             Term::Abstraction(
                 Abstraction {
@@ -624,6 +671,7 @@ impl Context {
             Term::Infix(left, _, right, _) => {
                 self.has_local_deps(left) && self.has_local_deps(right)
             }
+            Term::MLet(_, value, body, _) => self.has_local_deps(value) && self.has_local_deps(body),
             Term::Let(..) => true,
             Term::LetBox(_, value, body, _) => {
                 self.has_local_deps(value) && self.has_local_deps(body)

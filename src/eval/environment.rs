@@ -119,7 +119,7 @@ impl Environment {
                 eval_infix(left, op, right)
             }
             Term::Int(i, _) => Ok(Value::Int(*i)),
-            Term::Let(pattern, value, body, _) => {
+            Term::Let(pattern, value, body, _) | Term::MLet(pattern, value, body, _)=> {
                 let value = self.eval(thread_pool, value)?;
                 self.bind_and_eval(thread_pool, pattern, value, body)
             }

@@ -86,7 +86,7 @@ impl Parser {
 
     fn parse_declaration(&self, pair: Pair<Rule>) -> Declaration {
         match pair.as_rule() {
-            Rule::let_decl | Rule::let_box_decl => {
+            Rule::let_decl | Rule::let_box_decl | Rule::mlet_decl => {
                 let mut inner_rules = pair.into_inner();
                 let pattern = self.parse_pattern(inner_rules.next().unwrap());
                 let term = self.parse_term(inner_rules.next().unwrap());
@@ -186,6 +186,13 @@ impl Parser {
                 let consequent = Arc::new(self.parse_term(inner_rules.next().unwrap()));
                 let alternative = Arc::new(self.parse_term(inner_rules.next().unwrap()));
                 Term::If(condition, consequent, alternative, span)
+            }
+            Rule::mlet_term => {
+                let mut inner_rules = pair.into_inner();
+                let pattern = self.parse_pattern(inner_rules.next().unwrap());
+                let value = Arc::new(self.parse_term(inner_rules.next().unwrap()));
+                let body = Arc::new(self.parse_term(inner_rules.next().unwrap()));
+                Term::MLet(pattern, value, body, span)
             }
             Rule::let_term => {
                 let mut inner_rules = pair.into_inner();

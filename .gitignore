@@ -1,6 +1,6 @@
 /target
 /.vscode
-*.mdy
+*.b7
 /firedbg
 /.idea
 *.svg
