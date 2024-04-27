@@ -4,5 +4,4 @@ let fib = fix fib: Int -> Int => n: Int =>
     else
         fib (n - 1) + fib (n - 2)
 
-let main = _: () =>
-    let x = fib 20 in x
+let main = fib 25

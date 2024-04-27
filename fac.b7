@@ -5,4 +5,4 @@ let fac = fix fac: Int -> Int => n: Int =>
         n * fac(n - 1)
 
 let main = _: () =>
-    let x = fac 20 in x
+    let x = fac 25 in x
