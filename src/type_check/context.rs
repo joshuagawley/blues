@@ -79,7 +79,7 @@ impl Context {
                 let modal_value_type = self.resolve_type_of(value)?;
                 let value_type = modal_value_type.get_inner_type();
                 let mut context = self.clone();
-                context.bind_pattern(Local, pattern, term, value_type)?;
+                context.bind_pattern(Mobile, pattern, term, value_type)?;
                 Ok(context.resolve_type_of(body)?.clone())
             }
             Term::Match(value, arms, span) => self.type_of_match(term, value, arms, span),
