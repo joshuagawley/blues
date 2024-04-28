@@ -64,7 +64,7 @@ impl ariadne::Span for Span {
 pub struct Parser {
     source_name: String,
     type_parser: PrattParser<Rule>,
-    expr_parser: PrattParser<Rule>,
+    term_parser: PrattParser<Rule>,
 }
 
 impl Parser {
@@ -94,7 +94,7 @@ impl Parser {
             }
             Rule::type_decl => {
                 let mut inner_rules = pair.into_inner();
-                let name = inner_rules.next().unwrap().as_str().to_string();
+                let name = inner_rules.next().unwrap().as_str().to_owned();
                 let r#type = self.parse_type(inner_rules.next().unwrap());
                 Declaration::Type(name, r#type)
             }
@@ -123,14 +123,14 @@ impl Parser {
                         let variants: IndexMap<String, Type> = inner_rules
                             .map(|pair| {
                                 let mut inner_rules = pair.into_inner();
-                                let label = inner_rules.next().unwrap().as_str().to_string();
+                                let label = inner_rules.next().unwrap().as_str().to_owned();
                                 let variant_type = self.parse_type(inner_rules.next().unwrap());
                                 (label, variant_type)
                             })
                             .collect();
                         Type::Variant(span, variants)
                     }
-                    Rule::ident => Type::Variable(span, pair.as_str().to_string()),
+                    Rule::ident => Type::Variable(span, pair.as_str().to_owned()),
                     _ => unreachable!("{pair}"),
                 }
             })
@@ -138,7 +138,7 @@ impl Parser {
                 let span = right.span().join(&self.span_from(&op)).unwrap();
 
                 match op.as_rule() {
-                    Rule::box_type => Type::Modal(span, Box::new(right)),
+                    Rule::box_type => Type::Mobile(span, Box::new(right)),
                     _ => unreachable!("{op}"),
                 }
             })
@@ -234,7 +234,7 @@ impl Parser {
     }
 
     fn parse_expr(&self, pair: Pair<Rule>) -> Term {
-        self.expr_parser
+        self.term_parser
             .map_primary(|pair| {
                 let inner_rules = pair.into_inner();
                 inner_rules
@@ -325,7 +325,7 @@ impl Parser {
             }
             Rule::variant_term => {
                 let mut inner_rules = pair.into_inner();
-                let label = inner_rules.next().unwrap().as_str().to_string();
+                let label = inner_rules.next().unwrap().as_str().to_owned();
                 let value = Arc::new(self.parse_term(inner_rules.next().unwrap()));
                 Term::Variant(label, value, span)
             }
@@ -334,7 +334,7 @@ impl Parser {
                 "false" => Term::Bool(false, span),
                 _ => unreachable!(),
             },
-            Rule::ident => Term::Variable(pair.as_str().into(), span),
+            Rule::ident => Term::Variable(pair.as_str().to_owned(), span),
             Rule::nat => Term::Int(pair.as_str().parse().unwrap(), span),
 
             _ => unreachable!(),
@@ -369,7 +369,7 @@ impl Default for Parser {
         let type_parser = PrattParser::new()
             .op(Op::infix(Rule::type_arrow, Assoc::Right))
             .op(Op::prefix(Rule::box_type));
-        let expr_parser = PrattParser::new()
+        let term_parser = PrattParser::new()
             .op(Op::infix(Rule::or_op, Assoc::Left))
             .op(Op::infix(Rule::and_op, Assoc::Left))
             .op(Op::infix(Rule::eq_op, Assoc::Left) | Op::infix(Rule::ne_op, Assoc::Left))
@@ -384,7 +384,7 @@ impl Default for Parser {
         Self {
             source_name: "".to_owned(),
             type_parser,
-            expr_parser,
+            term_parser,
         }
     }
 }

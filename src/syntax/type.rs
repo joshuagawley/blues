@@ -15,7 +15,7 @@ pub enum Type {
     // IndexMap preserves the order in which (k,v) pairs are inserted
     Variant(Span, IndexMap<String, Type>),
     Unit(Span),
-    Modal(Span, Box<Type>),
+    Mobile(Span, Box<Type>),
 }
 
 impl Type {
@@ -35,13 +35,13 @@ impl Type {
             Self::Variable(span, _) => span,
             Self::Variant(span, _) => span,
             Self::Unit(span) => span,
-            Self::Modal(span, _) => span,
+            Self::Mobile(span, _) => span,
         }
     }
 
     pub fn get_inner_type(&self) -> &Type {
         match self {
-            Type::Modal(_, inner) => inner.get_inner_type(),
+            Type::Mobile(_, inner) => inner.get_inner_type(),
             _ => self,
         }
     }
@@ -81,7 +81,7 @@ impl PartialEq for Type {
             (Self::Tuple(_, l1), Self::Tuple(_, r1)) => l1 == r1,
             (Self::Variable(_, l1), Self::Variable(_, r1)) => l1 == r1,
             (Self::Variant(_, l1), Self::Variant(_, r1)) => l1 == r1,
-            (Self::Modal(_, l1), Self::Modal(_, r1)) => l1 == r1,
+            (Self::Mobile(_, l1), Self::Mobile(_, r1)) => l1 == r1,
             _ => false,
         }
     }
@@ -112,7 +112,7 @@ impl Display for Type {
                     .collect::<Vec<_>>();
                 write!(f, "<{}>", variants.join(", "))
             }
-            Type::Modal(_, inner_type) => match **inner_type {
+            Type::Mobile(_, inner_type) => match **inner_type {
                 Type::Abstraction(_, _, _) => write!(f, "[]({inner_type})"),
                 _ => write!(f, "[]{inner_type}"),
             },

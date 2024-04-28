@@ -53,7 +53,7 @@ impl Context {
                     .into()]);
                 }
                 let inner_type = self.resolve_type_of(term)?;
-                Ok(Type::Modal(span.clone(), Box::new(inner_type)))
+                Ok(Type::Mobile(span.clone(), Box::new(inner_type)))
             }
             Term::Fix(abs, span) => self.type_of_fix(abs, span),
             Term::MFix(abs, span) => self.type_of_mfix(abs, span),
@@ -198,8 +198,8 @@ impl Context {
                     Err(errors)
                 }
             }
-            Type::Modal(span, inner_type) => {
-                Ok(Type::Modal(span, Box::new(self.resolve(*inner_type)?)))
+            Type::Mobile(span, inner_type) => {
+                Ok(Type::Mobile(span, Box::new(self.resolve(*inner_type)?)))
             }
             _ => Ok(r#type),
         }
@@ -475,7 +475,7 @@ impl Context {
         let param_type = self.resolve(*param_type)?;
         let return_type = self.resolve(*return_type)?;
 
-        if !matches!(*param_type.clone().unroll_abs()?.0, Type::Modal(..)) {
+        if !matches!(*param_type.clone().unroll_abs()?.0, Type::Mobile(..)) {
             return Err(vec![TypeError::ExpectedModal(
                 span.start(),
                 span.clone(),
@@ -657,7 +657,7 @@ impl Context {
                     body,
                 },
                 _,
-            ) => matches!(param_type, Type::Modal(..)) && self.has_local_deps(body),
+            ) => matches!(param_type, Type::Mobile(..)) && self.has_local_deps(body),
             Term::Application(_, arg, _) => self.has_local_deps(arg),
             Term::Ascription(term, _, _) => self.has_local_deps(term),
             Term::Bool(..) => false,
