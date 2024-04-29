@@ -2,9 +2,9 @@ program = _{ SOI ~ declarations ~ EOI }
 
 declarations =  { declaration* }
 declaration  = _{ mlet_decl | let_decl | let_box_decl | type_decl }
-mlet_decl     =  { "mlet" ~ ident ~ "=" ~ term}
-let_decl     =  { "let" ~ ident ~ "=" ~ term}
-let_box_decl =  { "let" ~ "box" ~ ident ~ "=" ~ term ~ "in" ~ term }
+mlet_decl     =  { "mlet" ~ pattern ~ "=" ~ term}
+let_decl     =  { "let" ~ pattern ~ "=" ~ term}
+let_box_decl =  { "let" ~ "box" ~ pattern ~ "=" ~ term ~ "in" ~ term }
 type_decl    =  { "let" ~ "type" ~ ident ~ "=" ~ type }
 
 type         =  { type_prefix? ~ primary_type ~ (type_infix ~ type_prefix? ~ primary_type)* }
