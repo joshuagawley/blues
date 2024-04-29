@@ -7,7 +7,7 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 anyhow = "1.0.82"
-ariadne = "0.4.0"
+ariadne = "0.4.1"
 indexmap = "2.2.6"
 pest = "2.7.9"
 pest_derive = "2.7.9"
