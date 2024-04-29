@@ -52,7 +52,7 @@ impl Display for Value {
             Self::Int(n) => write!(f, "{n}"),
             Self::Tuple(values) => {
                 let values = values.iter().map(Value::to_string).collect::<Vec<_>>();
-                write!(f, "[{}]", values.join(", "))
+                write!(f, "({})", values.join(", "))
             }
             Self::Unit => write!(f, "Unit"),
             Self::Variant { label, value } => write!(f, "<{label} = {value}>"),
