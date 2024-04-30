@@ -74,33 +74,31 @@ impl Type {
 impl PartialEq for Type {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Abstraction(_, l1, l2), Self::Abstraction(_, r1, r2)) => l1 == r1 && l2 == r2,
+            (Self::Abstraction(_, l1, l2), Self::Abstraction(_, r1, r2)) => {
+                l1 == r1 && l2 == r2
+            }
             (Self::Bool(_), Self::Bool(_)) => true,
             (Self::Int(_), Self::Int(_)) => true,
             (Self::Unit(_), Self::Unit(_)) => true,
             (Self::Tuple(_, l1), Self::Tuple(_, r1)) => l1 == r1,
-            (Self::Variable(_, l1), right) => {
-                match l1.as_str() {
-                    "Int" => right.is_int(),
-                    "Bool" => right.is_bool(),
-                    "Unit" => right.is_tuple(),
-                    _ => match right {
-                        Self::Variable(_, r1) => l1 == r1,
-                        _ => false,
-                    }
-                }
-            }
-            (left, Self::Variable(_, r1)) => {
-                match r1.as_str() {
-                    "Int" => left.is_int(),
-                    "Bool" => left.is_bool(),
-                    "Unit" => left.is_tuple(),
-                    _ => match left {
-                        Self::Variable(_, l1) =>  l1 == r1,
-                        _ => false,
-                    }
-                }
-            }
+            (Self::Variable(_, l1), right) => match l1.as_str() {
+                "Int" => right.is_int(),
+                "Bool" => right.is_bool(),
+                "Unit" => right.is_tuple(),
+                _ => match right {
+                    Self::Variable(_, r1) => l1 == r1,
+                    _ => false,
+                },
+            },
+            (left, Self::Variable(_, r1)) => match r1.as_str() {
+                "Int" => left.is_int(),
+                "Bool" => left.is_bool(),
+                "Unit" => left.is_tuple(),
+                _ => match left {
+                    Self::Variable(_, l1) => l1 == r1,
+                    _ => false,
+                },
+            },
             (Self::Variant(_, l1), Self::Variant(_, r1)) => l1 == r1,
             (Self::Mobile(_, l1), Self::Mobile(_, r1)) => l1 == r1,
             _ => false,
@@ -122,14 +120,17 @@ impl Display for Type {
             Type::Int(_) => write!(f, "Int"),
             Type::Unit(_) => write!(f, "Unit"),
             Type::Tuple(_, types) => {
-                let types = types.iter().map(Type::to_string).collect::<Vec<_>>();
+                let types =
+                    types.iter().map(Type::to_string).collect::<Vec<_>>();
                 write!(f, "({})", types.join(", "))
             }
             Type::Variable(_, name) => write!(f, "{name}"),
             Type::Variant(_, variants) => {
                 let variants = variants
                     .iter()
-                    .map(|(label, variant_type)| format!("{label}: {variant_type}"))
+                    .map(|(label, variant_type)| {
+                        format!("{label}: {variant_type}")
+                    })
                     .collect::<Vec<_>>();
                 write!(f, "<{}>", variants.join(", "))
             }

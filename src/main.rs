@@ -1,4 +1,5 @@
 use crate::parser::Span;
+use crate::type_check::context::WhichContext;
 use anyhow::anyhow;
 use ariadne::Source;
 use eval::{environment::Environment, prelude::Prelude, value::Value};
@@ -12,7 +13,6 @@ use syntax::{
     term::Term,
 };
 use type_check::context::Context;
-use crate::type_check::context::WhichContext;
 
 mod error;
 mod eval;
@@ -64,13 +64,17 @@ fn type_check(
                 };
                 let which_context = match term {
                     Term::MLet(..) => WhichContext::Mobile,
-                    _ => WhichContext::Local
+                    _ => WhichContext::Local,
                 };
-                context.bind_pattern(which_context, pattern, term, &r#type).unwrap();
+                context
+                    .bind_pattern(which_context, pattern, term, &r#type)
+                    .unwrap();
                 let value = env.eval(&thread_pool, term)?;
                 env.bind_pattern(pattern, value)?;
             }
-            Declaration::Type(name, r#type) => context.insert_type(name.clone(), r#type.clone()),
+            Declaration::Type(name, r#type) => {
+                context.insert_type(name.clone(), r#type.clone())
+            }
         }
     }
     Ok(())

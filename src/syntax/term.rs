@@ -1,7 +1,7 @@
 use crate::parser::Span;
 use core::fmt::Display;
-use std::sync::Arc;
 use indexmap::IndexMap;
+use std::sync::Arc;
 
 use super::{abstraction::Abstraction, pattern::Pattern, r#type::Type};
 
@@ -63,8 +63,12 @@ impl Display for Term {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Term::Abstraction(abstraction, _) => write!(f, "{abstraction}"),
-            Term::Application(abstraction, argument, _) => write!(f, "{abstraction} {argument}"),
-            Term::Ascription(value, as_type, _) => write!(f, "{value} as {as_type}"),
+            Term::Application(abstraction, argument, _) => {
+                write!(f, "{abstraction} {argument}")
+            }
+            Term::Ascription(value, as_type, _) => {
+                write!(f, "{value} as {as_type}")
+            }
             Term::Box(value, _) => write!(f, "box {value}"),
             Term::Bool(b, _) => write!(f, "{b}"),
             Term::Fix(value, _) => write!(f, "fix {value}"),
@@ -74,25 +78,34 @@ impl Display for Term {
             }
             Term::Int(n, _) => write!(f, "{n}"),
             Term::Infix(lhs, op, rhs, _) => write!(f, "{lhs} {op} {rhs}"),
-            Term::Let(pattern, value, body, _) => write!(f, "let {pattern} = {value} in {body}"),
-            Term::MLet(pattern, value, body, _) => write!(f, ",let {pattern} = {value} in {body}"),
+            Term::Let(pattern, value, body, _) => {
+                write!(f, "let {pattern} = {value} in {body}")
+            }
+            Term::MLet(pattern, value, body, _) => {
+                write!(f, ",let {pattern} = {value} in {body}")
+            }
             Term::LetBox(pattern, value, body, _) => {
                 write!(f, "let box {pattern} = {value} in {body}")
             }
             Term::Match(value, arms, _) => {
                 let arms = arms
                     .iter()
-                    .map(|(tag, (pattern, body))| format!("<{tag}={pattern}> => {body}"))
+                    .map(|(tag, (pattern, body))| {
+                        format!("<{tag}={pattern}> => {body}")
+                    })
                     .collect::<Vec<_>>();
                 write!(f, "match {value} with {}", arms.join(", "))
             }
             Term::Postfix(left, op, _) => write!(f, "{left}{op}"),
             Term::Prefix(op, right, _) => write!(f, "{op}{right}"),
             Term::Tuple(values, _) => {
-                let values = values.iter().map(Term::to_string).collect::<Vec<_>>();
+                let values =
+                    values.iter().map(Term::to_string).collect::<Vec<_>>();
                 write!(f, "[{}]", values.join(", "))
             }
-            Term::TupleProjection(tuple, index, _) => write!(f, "{tuple}.{index}"),
+            Term::TupleProjection(tuple, index, _) => {
+                write!(f, "{tuple}.{index}")
+            }
             Term::Unit(_) => write!(f, "Unit"),
             Term::Variable(name, _) => write!(f, "{name}"),
             Term::Variant(field, value, _) => write!(f, "<{field} = {value}>"),

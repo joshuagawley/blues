@@ -18,7 +18,8 @@ impl Prelude {
         self.types
             .into_iter()
             .for_each(|(name, r#type)| context.insert_type(name, r#type));
-        self.context.clone()
+        self.context
+            .clone()
             .into_iter()
             .for_each(|(name, r#type)| context.insert(Local, name, r#type));
         self.context

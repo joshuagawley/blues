@@ -28,18 +28,27 @@ pub enum TypeError {
 
 impl Reportable for TypeError {
     fn build_report(&self) -> Report<Span> {
-        let report = Report::<Span>::build(ReportKind::Error, self.span().source(), self.offset());
+        let report = Report::<Span>::build(
+            ReportKind::Error,
+            self.span().source(),
+            self.offset(),
+        );
 
         match self {
             Self::BoxedExprHasLocalDeps(_, span, expr) => report
                 .with_message("Boxed expr depends on local values")
                 .with_label(
                     Label::new(span.clone())
-                        .with_message(format!("Expr {} has local deps", expr.fg(Color::Red)))
+                        .with_message(format!(
+                            "Expr {} has local deps",
+                            expr.fg(Color::Red)
+                        ))
                         .with_color(Color::Red),
                 ),
             Self::VariableDefinedInBothContexts(_, span, name) => report
-                .with_message(format!("Variable `{name}` defined in both contexts!"))
+                .with_message(format!(
+                    "Variable `{name}` defined in both contexts!"
+                ))
                 .with_label(
                     Label::new(span.clone())
                         .with_message("defined in both contexts")
@@ -59,9 +68,9 @@ impl Reportable for TypeError {
                     ))
                     .with_color(Color::Red),
             ),
-            TypeError::ExpectedModal(_, _, r#type) => {
-                report.with_message(format!("Expected type `{}` to be modal", r#type))
-            }
+            TypeError::ExpectedModal(_, _, r#type) => report.with_message(
+                format!("Expected type `{}` to be modal", r#type),
+            ),
             TypeError::MissingVariants(_, span, variants) => report
                 .with_message("missing variants")
                 .with_labels(variants.iter().map(|(label, variant_type)| {
@@ -76,14 +85,18 @@ impl Reportable for TypeError {
                 }))
                 .with_note("Ensure all variants are exhausted by match arms."),
             Self::UndefinedVariable(_, span, name) => report
-                .with_message(format!("cannot find variable `{name}` in this scope"))
+                .with_message(format!(
+                    "cannot find variable `{name}` in this scope"
+                ))
                 .with_label(
                     Label::new(span.clone())
                         .with_message("not found in this scope")
                         .with_color(Color::Red),
                 ),
             TypeError::UnknownField(_, span, label, field_type) => report
-                .with_message(format!("no field `{label}` on record `{field_type}`"))
+                .with_message(format!(
+                    "no field `{label}` on record `{field_type}`"
+                ))
                 .with_label(
                     Label::new(span.clone())
                         .with_message("unknown field")
@@ -95,14 +108,18 @@ impl Reportable for TypeError {
                 index,
                 tuple_type,
             } => report
-                .with_message(format!("no index `{index}` in tuple `{tuple_type}`"))
+                .with_message(format!(
+                    "no index `{index}` in tuple `{tuple_type}`"
+                ))
                 .with_label(
                     Label::new(span.clone())
                         .with_message("unknown index")
                         .with_color(Color::Red),
                 ),
             TypeError::UnknownType(_, span, name) => report
-                .with_message(format!("cannot find type `{name}` in this scope"))
+                .with_message(format!(
+                    "cannot find type `{name}` in this scope"
+                ))
                 .with_label(
                     Label::new(span.clone())
                         .with_message("not found in this scope")

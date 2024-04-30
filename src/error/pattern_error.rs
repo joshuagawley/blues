@@ -21,7 +21,11 @@ pub enum PatternError {
 
 impl Reportable for PatternError {
     fn build_report(&self) -> Report<Span> {
-        let report = Report::<Span>::build(ReportKind::Error, self.span().source(), self.offset());
+        let report = Report::<Span>::build(
+            ReportKind::Error,
+            self.span().source(),
+            self.offset(),
+        );
         match self {
             Self::Incompatible {
                 span,
@@ -54,13 +58,15 @@ impl Reportable for PatternError {
 
     fn offset(&self) -> usize {
         match self {
-            Self::Incompatible { span, .. } | Self::MissingElements { span, .. } => span.start(),
+            Self::Incompatible { span, .. }
+            | Self::MissingElements { span, .. } => span.start(),
         }
     }
 
     fn span(&self) -> &Span {
         match self {
-            Self::Incompatible { span, .. } | Self::MissingElements { span, .. } => span,
+            Self::Incompatible { span, .. }
+            | Self::MissingElements { span, .. } => span,
         }
     }
 }

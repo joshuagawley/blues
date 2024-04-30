@@ -12,7 +12,8 @@ impl Display for Pattern {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Pattern::Tuple(_, patterns) => {
-                let patterns = patterns.iter().map(Pattern::to_string).collect::<Vec<_>>();
+                let patterns =
+                    patterns.iter().map(Pattern::to_string).collect::<Vec<_>>();
                 write!(f, "({})", patterns.join(", "))
             }
             Pattern::Variable(_, name) => write!(f, "{name}"),

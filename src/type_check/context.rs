@@ -12,14 +12,14 @@ use crate::{
 
 use crate::error::{Errors, MaybeType};
 use crate::parser::Span;
+use crate::type_check::context::WhichContext::{Local, Mobile};
 use ariadne::Span as AriadneSpan;
 use indexmap::IndexMap;
-use crate::type_check::context::WhichContext::{Local, Mobile};
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum WhichContext {
     Local,
-    Mobile
+    Mobile,
 }
 
 #[derive(Clone, Default, Debug)]
@@ -40,8 +40,12 @@ impl Context {
                 },
                 span,
             ) => self.type_of_abstraction(term, param, param_type, body, span),
-            Term::Application(abs, arg, span) => self.type_of_application(abs, arg, span),
-            Term::Ascription(value, as_type, span) => self.type_of_ascription(value, as_type, span),
+            Term::Application(abs, arg, span) => {
+                self.type_of_application(abs, arg, span)
+            }
+            Term::Ascription(value, as_type, span) => {
+                self.type_of_ascription(value, as_type, span)
+            }
             Term::Bool(_, span) => Ok(Type::Bool(span.clone())),
             Term::Box(term, span) => {
                 if self.has_local_deps(term) {
@@ -61,7 +65,9 @@ impl Context {
                 self.type_of_if(guard, if_true, if_false, span)
             }
             Term::Int(_, span) => Ok(Type::Int(span.clone())),
-            Term::Infix(left, op, right, span) => self.type_of_infix(left, op, right, span),
+            Term::Infix(left, op, right, span) => {
+                self.type_of_infix(left, op, right, span)
+            }
             Term::MLet(pattern, value, body, _) => {
                 let value_type = self.resolve_type_of(value)?;
                 let mut context = self.clone();
@@ -82,20 +88,25 @@ impl Context {
                 context.bind_pattern(Mobile, pattern, term, value_type)?;
                 Ok(context.resolve_type_of(body)?.clone())
             }
-            Term::Match(value, arms, span) => self.type_of_match(term, value, arms, span),
+            Term::Match(value, arms, span) => {
+                self.type_of_match(term, value, arms, span)
+            }
             // Only postfix term is "as" which we've already dealt with
             Term::Postfix(..) => unimplemented!(),
-            Term::Prefix(op, right, span) => self.type_of_prefix(op, right, span),
+            Term::Prefix(op, right, span) => {
+                self.type_of_prefix(op, right, span)
+            }
             Term::Tuple(values, span) => values
                 .iter()
                 .map(|value| self.resolve_type_of(value))
                 .collect::<Result<_, _>>()
                 .map(|value_types| Type::Tuple(span.clone(), value_types)),
-            Term::TupleProjection(tuple, index, span) => {
-                self.type_of_tuple_proj(tuple, term.span().start(), *index, span)
-            }
+            Term::TupleProjection(tuple, index, span) => self
+                .type_of_tuple_proj(tuple, term.span().start(), *index, span),
             Term::Unit(span) => Ok(Type::Unit(span.clone())),
-            Term::Variable(name, span) => self.get(name, term.span().start(), span.clone()).cloned(),
+            Term::Variable(name, span) => {
+                self.get(name, term.span().start(), span.clone()).cloned()
+            }
             Term::Variant(label, value, span) => {
                 let value_type = self.resolve_type_of(value)?;
                 Ok(Type::Variant(
@@ -129,7 +140,8 @@ impl Context {
                     }
                     .into()]);
                 }
-                for (pattern, r#type) in patterns.iter().zip(types.into_iter()) {
+                for (pattern, r#type) in patterns.iter().zip(types.into_iter())
+                {
                     self.bind_pattern(which_context, pattern, _term, &r#type)?;
                 }
             }
@@ -141,7 +153,9 @@ impl Context {
                 }
                 .into()]);
             }
-            (Pattern::Variable(_, name), value) => self.insert(which_context, name.clone(), value),
+            (Pattern::Variable(_, name), value) => {
+                self.insert(which_context, name.clone(), value)
+            }
             (Pattern::Wildcard(_), _) => {}
         }
 
@@ -176,18 +190,20 @@ impl Context {
                     Err(errors)
                 }
             }
-            Type::Variable(span, name) => self
-                .types
-                .get(&name)
-                .cloned()
-                .ok_or(vec![TypeError::UnknownType(span.start(), span, name).into()]),
+            Type::Variable(span, name) => {
+                self.types.get(&name).cloned().ok_or(vec![
+                    TypeError::UnknownType(span.start(), span, name).into(),
+                ])
+            }
             Type::Variant(span, variants) => {
                 let mut variant_types = IndexMap::new();
                 let mut errors = Vec::new();
                 for (label, variant_type) in variants {
                     match self.resolve(variant_type) {
                         // We don't need to know if the key exists already
-                        Ok(variant_type) => drop(variant_types.insert(label, variant_type)),
+                        Ok(variant_type) => {
+                            drop(variant_types.insert(label, variant_type))
+                        }
                         Err(mut err) => errors.append(&mut err),
                     }
                 }
@@ -205,7 +221,12 @@ impl Context {
         }
     }
 
-    pub fn get(&self, name: &str, offset: usize, span: Span) -> Result<&Type, Errors> {
+    pub fn get(
+        &self,
+        name: &str,
+        offset: usize,
+        span: Span,
+    ) -> Result<&Type, Errors> {
         let maybe_local = self.get_local(name);
         let maybe_mobile = self.get_mobile(name);
 
@@ -218,12 +239,14 @@ impl Context {
                 name.to_owned(),
             )
             .into()]),
-            (Some(_), Some(_)) => Err(vec![TypeError::VariableDefinedInBothContexts(
-                offset,
-                span,
-                name.to_owned(),
-            )
-            .into()]),
+            (Some(_), Some(_)) => {
+                Err(vec![TypeError::VariableDefinedInBothContexts(
+                    offset,
+                    span,
+                    name.to_owned(),
+                )
+                .into()])
+            }
         }
     }
 
@@ -235,7 +258,12 @@ impl Context {
         self.mobile_bindings.get(name)
     }
 
-    pub fn insert(&mut self, which_context: WhichContext, name: String, r#type: Type) {
+    pub fn insert(
+        &mut self,
+        which_context: WhichContext,
+        name: String,
+        r#type: Type,
+    ) {
         match which_context {
             WhichContext::Local => self.insert_local(name, r#type),
             WhichContext::Mobile => self.insert_mobile(name, r#type),
@@ -272,7 +300,12 @@ impl Context {
         ))
     }
 
-    fn type_of_application(&mut self, abs: &Term, arg: &Term, span: &Span) -> MaybeType {
+    fn type_of_application(
+        &mut self,
+        abs: &Term,
+        arg: &Term,
+        span: &Span,
+    ) -> MaybeType {
         let abs_type = self.resolve_type_of(abs)?;
         let arg_type = self.resolve_type_of(arg)?;
 
@@ -303,7 +336,12 @@ impl Context {
         }
     }
 
-    fn type_of_ascription(&mut self, value: &Term, as_type: &Type, span: &Span) -> MaybeType {
+    fn type_of_ascription(
+        &mut self,
+        value: &Term,
+        as_type: &Type,
+        span: &Span,
+    ) -> MaybeType {
         let as_type = self.resolve(as_type.clone())?;
         let value_type = self.resolve_type_of(value)?;
 
@@ -313,9 +351,9 @@ impl Context {
 
         match (&value_type, &as_type) {
             (Type::Variant(_, term_variants), Type::Variant(_, variants))
-                if term_variants
-                    .iter()
-                    .all(|(label, r#type)| variants.get(label) == Some(r#type)) =>
+                if term_variants.iter().all(|(label, r#type)| {
+                    variants.get(label) == Some(r#type)
+                }) =>
             {
                 Ok(as_type)
             }
@@ -330,7 +368,13 @@ impl Context {
         }
     }
 
-    fn type_of_infix(&mut self, left: &Term, op: &Infix, right: &Term, span: &Span) -> MaybeType {
+    fn type_of_infix(
+        &mut self,
+        left: &Term,
+        op: &Infix,
+        right: &Term,
+        span: &Span,
+    ) -> MaybeType {
         let left_type = self.resolve_type_of(left)?;
         let right_type = self.resolve_type_of(right)?;
 
@@ -558,13 +602,16 @@ impl Context {
         let absent = variants
             .iter()
             .filter_map(|(label, variant_type)| {
-                (!arms.contains_key(label)).then_some((label.clone(), variant_type.clone()))
+                (!arms.contains_key(label))
+                    .then_some((label.clone(), variant_type.clone()))
             })
             .collect::<Vec<(String, Type)>>();
 
         let extraneous = arms
             .iter()
-            .filter_map(|(label, _)| (!arms.contains_key(label)).then_some(label.clone()))
+            .filter_map(|(label, _)| {
+                (!arms.contains_key(label)).then_some(label.clone())
+            })
             .collect::<Vec<String>>();
 
         if !extraneous.is_empty() {
@@ -574,8 +621,14 @@ impl Context {
         let mut errors = Vec::new();
 
         if !absent.is_empty() {
-            errors
-                .push(TypeError::MissingVariants(term.span().start(), span.clone(), absent).into());
+            errors.push(
+                TypeError::MissingVariants(
+                    term.span().start(),
+                    span.clone(),
+                    absent,
+                )
+                .into(),
+            );
         }
 
         if !errors.is_empty() {
@@ -586,12 +639,15 @@ impl Context {
         for (label, (pattern, body)) in arms {
             let mut content = self.clone();
             let label_type = variants.get(label).unwrap().clone();
-            if let Err(mut err) = content.bind_pattern(Local, pattern, term, &label_type) {
+            if let Err(mut err) =
+                content.bind_pattern(Local, pattern, term, &label_type)
+            {
                 errors.append(&mut err);
             }
             match content.resolve_type_of(body) {
                 Ok(arm_type) => {
-                    arm_types.insert(label.clone(), (arm_type, body.span().clone()));
+                    arm_types
+                        .insert(label.clone(), (arm_type, body.span().clone()));
                 }
                 Err(mut errs) => errors.append(&mut errs),
             }
@@ -623,7 +679,12 @@ impl Context {
         }
     }
 
-    fn type_of_prefix(&mut self, op: &Prefix, right: &Term, span: &Span) -> MaybeType {
+    fn type_of_prefix(
+        &mut self,
+        op: &Prefix,
+        right: &Term,
+        span: &Span,
+    ) -> MaybeType {
         let right_type = self.resolve_type_of(right)?;
         match (op, right_type.get_inner_type()) {
             (Prefix::Neg, Type::Int(..)) => Ok(Type::Int(span.clone())),
@@ -647,8 +708,7 @@ impl Context {
 
     fn has_local_deps(&self, term: &Term) -> bool {
         match term {
-            Term::Variable(name, _) =>
-                self.get_local(name).is_some(),
+            Term::Variable(name, _) => self.get_local(name).is_some(),
 
             Term::Abstraction(
                 Abstraction {
@@ -657,7 +717,10 @@ impl Context {
                     body,
                 },
                 _,
-            ) => matches!(param_type, Type::Mobile(..)) && self.has_local_deps(body),
+            ) => {
+                matches!(param_type, Type::Mobile(..))
+                    && self.has_local_deps(body)
+            }
             Term::Application(_, arg, _) => self.has_local_deps(arg),
             Term::Ascription(term, _, _) => self.has_local_deps(term),
             Term::Bool(..) => false,
@@ -671,7 +734,9 @@ impl Context {
             Term::Infix(left, _, right, _) => {
                 self.has_local_deps(left) && self.has_local_deps(right)
             }
-            Term::MLet(_, value, body, _) => self.has_local_deps(value) && self.has_local_deps(body),
+            Term::MLet(_, value, body, _) => {
+                self.has_local_deps(value) && self.has_local_deps(body)
+            }
             Term::Let(..) => true,
             Term::LetBox(_, value, body, _) => {
                 self.has_local_deps(value) && self.has_local_deps(body)
@@ -682,7 +747,9 @@ impl Context {
             }
             Term::Postfix(term, _, _) => self.has_local_deps(term),
             Term::Prefix(_, term, _) => self.has_local_deps(term),
-            Term::Tuple(terms, _) => terms.iter().all(|term| self.has_local_deps(term)),
+            Term::Tuple(terms, _) => {
+                terms.iter().all(|term| self.has_local_deps(term))
+            }
             Term::TupleProjection(tuple, _, _) => self.has_local_deps(tuple),
             Term::Unit(..) => false,
             Term::Variant(_, arms, _) => self.has_local_deps(arms),

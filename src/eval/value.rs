@@ -51,7 +51,8 @@ impl Display for Value {
             Self::Bool(b) => write!(f, "{b}"),
             Self::Int(n) => write!(f, "{n}"),
             Self::Tuple(values) => {
-                let values = values.iter().map(Value::to_string).collect::<Vec<_>>();
+                let values =
+                    values.iter().map(Value::to_string).collect::<Vec<_>>();
                 write!(f, "({})", values.join(", "))
             }
             Self::Unit => write!(f, "Unit"),
