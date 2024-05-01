@@ -1,9 +1,10 @@
 let parfac = mfix fac: []Int -> Int =>
     n: []Int =>
         let box u = n in
-            if u < 2 then
+            if (u < 2) then
                 u
             else
-                let box m = box (fac (box (n - 1))) in (n * m)
+                let box v = box (fac (box (u - 1))) in
+                    (u * v)
 
 let main = parfac (box 25)

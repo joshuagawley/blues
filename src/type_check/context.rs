@@ -202,6 +202,7 @@ impl Context {
                     match self.resolve(variant_type) {
                         // We don't need to know if the key exists already
                         Ok(variant_type) => {
+                            // Insert the new value and drop the older value if it exists
                             drop(variant_types.insert(label, variant_type))
                         }
                         Err(mut err) => errors.append(&mut err),
