@@ -29,7 +29,7 @@ fn make_context() -> (Context, Environment) {
     (context, env)
 }
 
-fn type_check(
+fn run_decls(
     decls: &[Declaration],
     context: &mut Context,
     env: &mut Environment,
@@ -37,6 +37,7 @@ fn type_check(
     path: String,
     thread_pool: &ThreadPool,
 ) -> anyhow::Result<()> {
+    // Typechecking run
     for decl in decls {
         match decl {
             Declaration::Term(pattern, term) => {
@@ -69,12 +70,18 @@ fn type_check(
                 context
                     .bind_pattern(which_context, pattern, term, &r#type)
                     .unwrap();
-                let value = env.eval(&thread_pool, term)?;
-                env.bind_pattern(pattern, value)?;
             }
             Declaration::Type(name, r#type) => {
                 context.insert_type(name.clone(), r#type.clone())
             }
+        }
+    }
+    
+    // Evaluation run
+    for decl in decls {
+        if let Declaration::Term(pattern, term) = decl {
+            let value = env.eval(thread_pool, term)?;
+            env.bind_pattern(pattern, value)?;
         }
     }
     Ok(())
@@ -93,7 +100,7 @@ fn main() -> anyhow::Result<()> {
 
     let thread_pool = rayon::ThreadPoolBuilder::new().build()?;
 
-    type_check(&decls, &mut context, &mut env, &source, path, &thread_pool)?;
+    run_decls(&decls, &mut context, &mut env, &source, path, &thread_pool)?;
 
     let main_type = context.get("main", 0, Span::default()).unwrap();
     let main = env.get("main")?;
