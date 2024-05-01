@@ -29,60 +29,54 @@ fn make_context() -> (Context, Environment) {
     (context, env)
 }
 
-fn run_decls(
-    decls: &[Declaration],
-    context: &mut Context,
-    env: &mut Environment,
-    source: &str,
-    path: String,
-    thread_pool: &ThreadPool,
-) -> anyhow::Result<()> {
-    // Typechecking run
-    for decl in decls {
-        match decl {
-            Declaration::Term(pattern, term) => {
-                let raw_type = context.type_of(term);
-                let Ok(raw_type) = raw_type else {
-                    let reports = raw_type.unwrap_err();
-                    for report in reports {
-                        report
-                            .build_report()
-                            .eprint((path.clone(), Source::from(&source)))?;
-                    }
-                    std::process::exit(1)
-                };
+fn type_check(decl: &Declaration, context: &mut Context,
+              source: &str,
+              path: &str) -> anyhow::Result<()>  {
+    match decl {
+        Declaration::Term(pattern, term) => {
+            let raw_type = context.type_of(term);
+            let Ok(raw_type) = raw_type else {
+                let reports = raw_type.unwrap_err();
+                for report in reports {
+                    report
+                        .build_report()
+                        .eprint((path.to_owned(), Source::from(&source)))?;
+                }
+                std::process::exit(1)
+            };
 
-                let r#type = context.resolve(raw_type);
+            let r#type = context.resolve(raw_type);
 
-                let Ok(r#type) = r#type else {
-                    let reports = r#type.unwrap_err();
-                    for report in reports {
-                        report
-                            .build_report()
-                            .eprint((path.clone(), Source::from(&source)))?;
-                    }
-                    std::process::exit(1)
-                };
-                let which_context = match term {
-                    Term::MLet(..) => WhichContext::Mobile,
-                    _ => WhichContext::Local,
-                };
-                context
-                    .bind_pattern(which_context, pattern, term, &r#type)
-                    .unwrap();
-            }
-            Declaration::Type(name, r#type) => {
-                context.insert_type(name.clone(), r#type.clone())
-            }
+            let Ok(r#type) = r#type else {
+                let reports = r#type.unwrap_err();
+                for report in reports {
+                    report
+                        .build_report()
+                        .eprint((path.to_owned(), Source::from(&source)))?;
+                }
+                std::process::exit(1)
+            };
+            let which_context = match term {
+                Term::MLet(..) => WhichContext::Mobile,
+                _ => WhichContext::Local,
+            };
+            context
+                .bind_pattern(which_context, pattern, term, &r#type)
+                .unwrap();
+        }
+        Declaration::Type(name, r#type) => {
+            context.insert_type(name.clone(), r#type.clone())
         }
     }
-    
-    // Evaluation run
-    for decl in decls {
-        if let Declaration::Term(pattern, term) = decl {
-            let value = env.eval(thread_pool, term)?;
-            env.bind_pattern(pattern, value)?;
-        }
+    Ok(())
+}
+
+fn eval(decl: &Declaration,
+        env: &mut Environment,
+        thread_pool: &ThreadPool) -> anyhow::Result<()> {
+    if let Declaration::Term(pattern, term) = decl {
+        let value = env.eval(thread_pool, term)?;
+        env.bind_pattern(pattern, value)?;
     }
     Ok(())
 }
@@ -98,9 +92,15 @@ fn main() -> anyhow::Result<()> {
 
     let (mut context, mut env) = make_context();
 
-    let thread_pool = rayon::ThreadPoolBuilder::new().build()?;
+    for decl in &decls {
+        type_check(decl, &mut context, &source, &path)?;
+    }
 
-    run_decls(&decls, &mut context, &mut env, &source, path, &thread_pool)?;
+    let thread_pool = rayon::ThreadPoolBuilder::new().build()?;
+    
+    for decl in &decls {
+        eval(decl, &mut env, &thread_pool)?
+    }
 
     let main_type = context.get("main", 0, Span::default()).unwrap();
     let main = env.get("main")?;
