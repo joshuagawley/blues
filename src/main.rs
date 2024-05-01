@@ -86,18 +86,21 @@ fn main() -> anyhow::Result<()> {
         return Err(anyhow!("Usage: b7 <file>"));
     };
 
+    // Parsing
     let source = fs::read_to_string(&path)?;
     let parser = Parser::new(path.clone());
     let Program(decls) = parser.parse_source(&source)?;
-
+    
+    // Prelude
     let (mut context, mut env) = make_context();
-
+    
+    // Type checking
     for decl in &decls {
         type_check(decl, &mut context, &source, &path)?;
     }
-
-    let thread_pool = rayon::ThreadPoolBuilder::new().build()?;
     
+    // Evaluating
+    let thread_pool = rayon::ThreadPoolBuilder::new().build()?;
     for decl in &decls {
         eval(decl, &mut env, &thread_pool)?
     }
