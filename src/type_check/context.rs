@@ -81,9 +81,17 @@ impl Context {
                 context.resolve_type_of(body)
             }
 
-            Term::LetBox(pattern, value, body, _) => {
-                let modal_value_type = self.resolve_type_of(value)?;
-                let value_type = modal_value_type.get_inner_type();
+            Term::LetBox(pattern, value, body, span) => {
+                let mobile_value_type = self.resolve_type_of(value)?;
+                if !matches!(mobile_value_type, Type::Mobile(..)) {
+                    return Err(vec![TypeError::ExpectedModal(
+                        term.span().start(),
+                        span.clone(),
+                        mobile_value_type,
+                    )
+                    .into()]);
+                }
+                let value_type = mobile_value_type.get_inner_type();
                 let mut context = self.clone();
                 context.bind_pattern(Mobile, pattern, term, value_type)?;
                 Ok(context.resolve_type_of(body)?.clone())
