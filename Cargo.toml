@@ -10,7 +10,7 @@ anyhow = "1.0.82"
 ariadne = "0.4.1"
 indexmap = "2.2.6"
 pest = "2.7.11"
-pest_derive = "2.7.10"
+pest_derive = "2.7.11"
 rayon = "1.10.0"
 
 [profile.release]
